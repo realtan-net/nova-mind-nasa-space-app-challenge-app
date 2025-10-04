@@ -1,0 +1,596 @@
+openapi: 3.0.3
+info:
+  title: NASA Weather Data API
+  description: |
+    Weather data and prediction service using NASA POWER API.
+    
+    This API provides historical weather data and future weather predictions based on NASA POWER satellite data.
+    For past dates, it returns actual historical measurements. For future dates, it calculates predictions
+    using arithmetic mean of historical data from the past 20 years (configurable).
+    
+    ## Features
+    - Historical weather data from NASA POWER API
+    - Weather predictions based on historical averages
+    - Multiple weather parameters support
+    - Bulk data processing
+    - CSV and JSON output formats
+    - Comprehensive error handling
+    
+    ## Data Source
+    All weather data is sourced from NASA's POWER (Prediction Of Worldwide Energy Resources) API,
+    which provides satellite-derived meteorological data.
+  version: 1.0.0
+  contact:
+    name: NASA Space Apps Challenge Team
+    email: support@weatherapi.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://nasa-weather-api.example.com/api
+    description: Production server
+
+tags:
+  - name: Weather Data
+    description: Weather data retrieval and prediction endpoints
+  - name: Weather Parameters
+    description: Available weather parameters information
+  - name: Health
+    description: API health and status endpoints
+
+paths:
+  /weather/data:
+    get:
+      summary: Get weather data for specific location and date
+      description: |
+        Returns historical weather data for past dates or predictions for future dates based on historical averages.
+        
+        **Historical Data**: For dates in the past, returns actual measured data from NASA POWER API.
+        **Predictions**: For future dates, calculates predictions using arithmetic mean of historical data from the specified number of years.
+      operationId: getWeatherData
+      tags:
+        - Weather Data
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -90
+            maximum: 90
+          example: 41.0
+          description: Latitude coordinate in decimal degrees
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -180
+            maximum: 180
+          example: 29.0
+          description: Longitude coordinate in decimal degrees
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-10-30"
+          description: Date in YYYY-MM-DD format (accepts flexible formats like 2025-1-1, 2025-10-3, or 2025-10-30)
+        - name: parameters
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z0-9_]+(,[A-Z0-9_]+)*$'
+          example: "T2M,RH2M,WS10M"
+          description: Comma-separated list of weather parameters (defaults to T2M,RH2M,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN)
+        - name: historicalYears
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 30
+            default: 20
+          example: 20
+          description: Number of historical years to use for future predictions
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+          example: "json"
+          description: Response format
+      responses:
+        '200':
+          description: Successfully retrieved weather data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherDataResponse'
+            text/csv:
+              schema:
+                type: string
+                description: CSV formatted weather data
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: External API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /weather/parameters:
+    get:
+      summary: Get available weather parameters
+      description: Returns list of available weather parameters with their descriptions, units, and usage information
+      operationId: getWeatherParameters
+      tags:
+        - Weather Parameters
+      responses:
+        '200':
+          description: Successfully retrieved parameter information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParametersResponse'
+
+  /weather/historical-range:
+    get:
+      summary: Get available data range for location
+      description: Returns the available date range for historical and prediction data at given coordinates
+      operationId: getHistoricalRange
+      tags:
+        - Weather Data
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -90
+            maximum: 90
+          description: Latitude coordinate in decimal degrees
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -180
+            maximum: 180
+          description: Longitude coordinate in decimal degrees
+      responses:
+        '200':
+          description: Successfully retrieved date range information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DateRangeResponse'
+        '400':
+          description: Invalid coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /weather/bulk:
+    post:
+      summary: Process multiple weather data requests
+      description: |
+        Accepts multiple location-date combinations for batch processing.
+        Maximum 10 requests per batch operation.
+      operationId: getBulkWeatherData
+      tags:
+        - Weather Data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: Bulk request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+        '400':
+          description: Invalid bulk request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      summary: API health check
+      description: Returns API status and NASA POWER API connectivity status
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    WeatherDataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            location:
+              $ref: '#/components/schemas/Location'
+            date:
+              type: string
+              format: date
+              example: "2025-09-30"
+            dataType:
+              type: string
+              enum: [historical, prediction]
+              example: "historical"
+            hourlyData:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: number
+              example:
+                T2M:
+                  "2025093000": 15.32
+                  "2025093001": 15.14
+            dailyAggregates:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/DailyAggregate'
+            metadata:
+              $ref: '#/components/schemas/WeatherMetadata'
+            predictionMethod:
+              type: string
+              example: "historical_average"
+              description: Only present for predictions
+            historicalYearsUsed:
+              type: integer
+              example: 20
+              description: Only present for predictions
+        requestTimestamp:
+          type: string
+          format: date-time
+          example: "2025-10-04T12:00:00Z"
+        processingTime:
+          type: integer
+          example: 245
+          description: Processing time in milliseconds
+
+    Location:
+      type: object
+      properties:
+        latitude:
+          type: number
+          example: 41.0
+        longitude:
+          type: number
+          example: 29.0
+        elevation:
+          type: number
+          nullable: true
+          example: 59.56
+
+    DailyAggregate:
+      type: object
+      properties:
+        min:
+          type: number
+          example: 14.95
+        max:
+          type: number
+          example: 21.41
+        mean:
+          type: number
+          example: 18.23
+        units:
+          type: string
+          example: "C"
+        confidence:
+          type: string
+          enum: [high, medium, low, very_low]
+          example: "high"
+          description: Only present for predictions
+        standardDeviation:
+          type: number
+          example: 2.1
+          description: Only present for predictions
+
+    WeatherMetadata:
+      type: object
+      properties:
+        source:
+          type: string
+          example: "NASA POWER API"
+        version:
+          type: string
+          example: "v2.8.0"
+        fillValue:
+          type: number
+          example: -999.0
+        timeStandard:
+          type: string
+          example: "LST"
+
+    ParametersResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            availableParameters:
+              type: array
+              items:
+                type: string
+              example: ["T2M", "RH2M", "WS10M", "WD10M", "PS", "ALLSKY_SFC_SW_DWN"]
+            parameterDetails:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  units:
+                    type: string
+                  longname:
+                    type: string
+              example:
+                T2M:
+                  units: "C"
+                  longname: "Temperature at 2 Meters"
+            defaultParameters:
+              type: array
+              items:
+                type: string
+              example: ["T2M", "RH2M", "WS10M", "WD10M", "PS", "ALLSKY_SFC_SW_DWN"]
+            maxParametersPerRequest:
+              type: integer
+              example: 20
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    DateRangeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            location:
+              $ref: '#/components/schemas/Location'
+            historicalRange:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                  example: "1981-01-01"
+                endDate:
+                  type: string
+                  format: date
+                  example: "2025-10-04"
+            predictionRange:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                  example: "2025-10-05"
+                endDate:
+                  type: string
+                  format: date
+                  example: "2035-10-04"
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    BulkRequest:
+      type: object
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            properties:
+              latitude:
+                type: number
+                format: float
+                minimum: -90
+                maximum: 90
+              longitude:
+                type: number
+                format: float
+                minimum: -180
+                maximum: 180
+              date:
+                type: string
+                format: date
+              parameters:
+                type: string
+                description: Optional comma-separated parameter list
+            required: [latitude, longitude, date]
+        historicalYears:
+          type: integer
+          minimum: 5
+          maximum: 30
+          default: 20
+      required: [requests]
+      example:
+        requests:
+          - latitude: 41.0
+            longitude: 29.0
+            date: "2025-10-15"
+            parameters: "T2M,RH2M"
+          - latitude: 40.7128
+            longitude: -74.0060
+            date: "2025-12-25"
+        historicalYears: 20
+
+    BulkResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            totalRequests:
+              type: integer
+              example: 2
+            successfulRequests:
+              type: integer
+              example: 2
+            failedRequests:
+              type: integer
+              example: 0
+            results:
+              type: array
+              items:
+                type: object
+                description: Same structure as WeatherDataResponse.data
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  index:
+                    type: integer
+                    example: 1
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        status:
+          type: string
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: "1.0.0"
+        services:
+          type: object
+          properties:
+            api:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [operational, degraded, down]
+                responseTime:
+                  type: integer
+            nasaPowerApi:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [operational, degraded, down]
+                message:
+                  type: string
+                error:
+                  type: string
+                  nullable: true
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        environment:
+          type: string
+          example: "development"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "Invalid input parameters"
+            details:
+              oneOf:
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      field:
+                        type: string
+                        example: "latitude"
+                      message:
+                        type: string
+                        example: "Latitude must be between -90 and 90"
+                      provided:
+                        example: "95.0"
+                - type: object
+        requestTimestamp:
+          type: string
+          format: date-time
