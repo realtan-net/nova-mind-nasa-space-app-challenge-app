@@ -12,6 +12,7 @@ const config = require('./config/config');
 const weatherRoutes = require('./routes/weatherRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const geomagneticRoutes = require('./routes/geomagneticRoutes');
+const asteroidRoutes = require('./routes/asteroidRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -85,6 +86,7 @@ class App {
     this.app.use('/api/weather', weatherRoutes);
     this.app.use('/api/health', healthRoutes);
     this.app.use('/api/geomagnetic', geomagneticRoutes);
+    this.app.use('/api/asteroids', asteroidRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -102,6 +104,7 @@ class App {
           forecast3Day: '/api/geomagnetic/forecast/3-day',
           forecast27Day: '/api/geomagnetic/forecast/27-day',
           forecastCombined: '/api/geomagnetic/forecast/combined',
+          asteroidFeed: '/api/asteroids/feed',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -126,6 +129,7 @@ class App {
           'GET /api/geomagnetic/forecast/3-day - Get 3-day geomagnetic forecast (NOAA SWPC)',
           'GET /api/geomagnetic/forecast/27-day - Get 27-day geomagnetic outlook (NOAA SWPC)',
           'GET /api/geomagnetic/forecast/combined - Get combined forecast data',
+          'GET /api/asteroids/feed - Get asteroid data by closest approach date',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -268,6 +272,17 @@ class App {
         console.log('✓ NOAA SWPC service connection test successful');
       } else {
         console.warn('⚠ NOAA SWPC service connection test failed:', swpcStatus.message);
+      }
+
+      // Test NASA NeoWs API
+      const NasaNeowsService = require('./services/nasaNeowsService');
+      const neowsService = new NasaNeowsService();
+      const neowsStatus = await neowsService.testConnectivity();
+      
+      if (neowsStatus.status === 'connected') {
+        console.log('✓ NASA NeoWs API connection test successful');
+      } else {
+        console.warn('⚠ NASA NeoWs API connection test failed:', neowsStatus.message);
       }
     } catch (error) {
       console.warn('⚠ Could not test API connections:', error.message);

@@ -45,6 +45,8 @@ tags:
     description: Available weather parameters information
   - name: Geomagnetic Data
     description: Geomagnetic storm data and forecasts from NASA DONKI and NOAA SWPC
+  - name: Asteroids
+    description: Near Earth Object asteroid data based on closest approach dates
   - name: Health
     description: API health and status endpoints
 
@@ -346,6 +348,58 @@ paths:
                 $ref: '#/components/schemas/CombinedForecastResponse'
         '503':
           description: NOAA SWPC service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /asteroids/feed:
+    get:
+      summary: Get asteroids by closest approach date
+      description: |
+        Retrieve a list of Asteroids based on their closest approach date to Earth. 
+        Returns detailed information about each asteroid including size estimates, velocity, 
+        miss distance, and hazard classification.
+        
+        **Date Range**: Maximum 7 days between start_date and end_date. 
+        If end_date is not provided, it defaults to 7 days after start_date.
+      operationId: getAsteroidFeed
+      tags:
+        - Asteroids
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+            example: "2025-09-07"
+          description: Starting date for asteroid search (YYYY-MM-DD format)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+            example: "2025-09-08"
+          description: Ending date for asteroid search (YYYY-MM-DD format). Defaults to 7 days after start_date. Maximum range is 7 days.
+      responses:
+        '200':
+          description: Successfully retrieved asteroid data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsteroidFeedResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsteroidErrorResponse'
+        '502':
+          description: External API error
           content:
             application/json:
               schema:
@@ -929,6 +983,309 @@ components:
           format: date-time
         processingTime:
           type: integer
+
+    AsteroidFeedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA NeoWs API"
+            dateRange:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                  example: "2025-09-07"
+                endDate:
+                  type: string
+                  format: date
+                  example: "2025-09-08"
+            elementCount:
+              type: integer
+              example: 31
+              description: Total number of asteroids in the response
+            asteroidsByDate:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asteroid'
+            summary:
+              $ref: '#/components/schemas/AsteroidSummary'
+            pagination:
+              type: object
+              properties:
+                next:
+                  type: string
+                  format: uri
+                  nullable: true
+                previous:
+                  type: string
+                  format: uri
+                  nullable: true
+                self:
+                  type: string
+                  format: uri
+                  nullable: true
+        requestTimestamp:
+          type: string
+          format: date-time
+          example: "2025-10-05T12:00:00Z"
+        processingTime:
+          type: integer
+          example: 456
+          description: Processing time in milliseconds
+
+    Asteroid:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "2523661"
+          description: Unique identifier for the asteroid
+        neoReferenceId:
+          type: string
+          example: "2523661"
+          description: NASA's Near Earth Object reference identifier
+        name:
+          type: string
+          example: "523661 (2012 LF11)"
+          description: Common name of the asteroid (may include designation codes)
+        nasaJplUrl:
+          type: string
+          format: uri
+          example: "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=2523661"
+          description: URL to NASA JPL Small-Body Database for detailed information
+        absoluteMagnitude:
+          type: number
+          format: float
+          example: 20.79
+          description: Absolute magnitude (H) - measure of asteroid's intrinsic brightness
+        estimatedDiameter:
+          type: object
+          description: Estimated size of the asteroid in various units with minimum and maximum values
+          properties:
+            kilometers:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  example: 0.1847374636
+                max:
+                  type: number
+                  format: float
+                  example: 0.4130855266
+            meters:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  example: 184.7374636151
+                max:
+                  type: number
+                  format: float
+                  example: 413.0855266343
+            miles:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  example: 0.1147905025
+                max:
+                  type: number
+                  format: float
+                  example: 0.2566793668
+            feet:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  example: 606.094060127
+                max:
+                  type: number
+                  format: float
+                  example: 1355.2675192028
+        isPotentiallyHazardous:
+          type: boolean
+          example: false
+          description: Boolean indicating if the asteroid is classified as potentially hazardous (based on size and orbit)
+        closeApproachData:
+          type: object
+          description: Information about the asteroid's close approach to Earth
+          properties:
+            date:
+              type: string
+              format: date
+              example: "2025-09-07"
+              description: Date of closest approach (YYYY-MM-DD format)
+            dateFull:
+              type: string
+              example: "2025-Sep-07 01:42"
+              description: Full date and time of closest approach
+            epochDate:
+              type: integer
+              format: int64
+              example: 1757209320000
+              description: Unix timestamp (milliseconds) of closest approach
+            relativeVelocity:
+              type: object
+              description: Speed of asteroid relative to Earth in multiple units
+              properties:
+                kilometersPerSecond:
+                  type: number
+                  format: float
+                  example: 25.9665380231
+                  description: Velocity in km/s
+                kilometersPerHour:
+                  type: number
+                  format: float
+                  example: 93479.5368830909
+                  description: Velocity in km/h
+                milesPerHour:
+                  type: number
+                  format: float
+                  example: 58084.5489038294
+                  description: Velocity in mph
+            missDistance:
+              type: object
+              description: Distance by which the asteroid will miss Earth
+              properties:
+                astronomical:
+                  type: number
+                  format: float
+                  example: 0.3976014378
+                  description: Distance in Astronomical Units (AU)
+                lunar:
+                  type: number
+                  format: float
+                  example: 154.6669593042
+                  description: Distance in Lunar Distances (LD, distance from Earth to Moon)
+                kilometers:
+                  type: number
+                  format: float
+                  example: 59480328.203817486
+                  description: Distance in kilometers
+                miles:
+                  type: number
+                  format: float
+                  example: 36959362.1174578668
+                  description: Distance in miles
+            orbitingBody:
+              type: string
+              example: "Earth"
+              description: The celestial body being orbited (typically "Earth")
+        isSentryObject:
+          type: boolean
+          example: false
+          description: Boolean indicating if the asteroid is on NASA's Sentry risk table (potential future Earth impact)
+
+    AsteroidSummary:
+      type: object
+      properties:
+        totalAsteroids:
+          type: integer
+          example: 31
+        potentiallyHazardous:
+          type: integer
+          example: 2
+        sentryObjects:
+          type: integer
+          example: 1
+        closestApproach:
+          type: object
+          nullable: true
+          properties:
+            asteroidId:
+              type: string
+              example: "54545419"
+            name:
+              type: string
+              example: "(2025 RF4)"
+            distance:
+              type: object
+              properties:
+                kilometers:
+                  type: number
+                  example: 2344252.941886597
+                miles:
+                  type: number
+                  example: 1456651.2322731586
+            date:
+              type: string
+              format: date
+              example: "2025-09-07"
+        largestAsteroid:
+          type: object
+          nullable: true
+          properties:
+            asteroidId:
+              type: string
+            name:
+              type: string
+            diameter:
+              type: object
+              properties:
+                kilometersMax:
+                  type: number
+                milesMax:
+                  type: number
+        fastestAsteroid:
+          type: object
+          nullable: true
+          properties:
+            asteroidId:
+              type: string
+            name:
+              type: string
+            velocity:
+              type: object
+              properties:
+                kilometersPerHour:
+                  type: number
+                milesPerHour:
+                  type: number
+
+    AsteroidErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "INVALID_DATE_FORMAT"
+            message:
+              type: string
+              example: "Invalid date format provided"
+            details:
+              type: object
+              properties:
+                field:
+                  type: string
+                  example: "start_date"
+                provided:
+                  type: string
+                  example: "2025/09/07"
+                expected:
+                  type: string
+                  example: "YYYY-MM-DD"
+        requestTimestamp:
+          type: string
+          format: date-time
 
     ErrorResponse:
       type: object

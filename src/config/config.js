@@ -55,6 +55,13 @@ const config = {
   noaaSwpc: {
     baseUrl: process.env.NOAA_SWPC_BASE_URL || 'https://services.swpc.noaa.gov/text',
     timeout: parseInt(process.env.NOAA_SWPC_TIMEOUT) || 30000
+  },
+
+  nasaNeows: {
+    baseUrl: process.env.NASA_NEOWS_BASE_URL || 'https://api.nasa.gov/neo/rest/v1',
+    apiKey: process.env.NASA_API_KEY,
+    timeout: parseInt(process.env.NASA_NEOWS_TIMEOUT) || 30000,
+    defaultDateRange: 7 // 7 days after start_date if end_date not provided
   }
 };
 
