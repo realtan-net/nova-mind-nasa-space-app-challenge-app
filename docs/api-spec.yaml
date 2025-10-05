@@ -53,6 +53,8 @@ tags:
     description: Real-time air quality monitoring and pollution data via OpenAQ
   - name: Earth Imagery
     description: NASA EPIC Earth Polychromatic Imaging Camera - Full-disk Earth images
+  - name: Astronomy Pictures
+    description: NASA APOD - Astronomy Picture of the Day
   - name: Health
     description: API health and status endpoints
 
@@ -1193,6 +1195,272 @@ paths:
                 $ref: '#/components/schemas/EPICDatesResponse'
         '502':
           description: NASA EPIC API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /apod:
+    get:
+      summary: Get today's Astronomy Picture of the Day
+      description: |
+        The date of the APOD image to retrieve. Get today's Astronomy Picture of the Day.
+        
+        Returns the latest Astronomy Picture of the Day with high-resolution imagery and detailed explanation.
+      operationId: getApodToday
+      tags:
+        - Astronomy Pictures
+      parameters:
+        - name: thumbs
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return the URL of video thumbnail. If an APOD is not a video, this parameter is ignored.
+      responses:
+        '200':
+          description: Successfully retrieved today's APOD
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/APODResponse'
+                  requestTimestamp:
+                    type: string
+                    format: date-time
+                  processingTime:
+                    type: integer
+        '502':
+          description: NASA APOD API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /apod/date/{date}:
+    get:
+      summary: Get APOD for specific date
+      description: |
+        The date of the APOD image to retrieve. Get Astronomy Picture of the Day for a specific date.
+        
+        Returns the Astronomy Picture of the Day for the specified date in YYYY-MM-DD format.
+      operationId: getApodByDate
+      tags:
+        - Astronomy Pictures
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-01"
+          description: Date in YYYY-MM-DD format
+        - name: thumbs
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return the URL of video thumbnail. If an APOD is not a video, this parameter is ignored.
+      responses:
+        '200':
+          description: Successfully retrieved APOD for specified date
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/APODResponse'
+                      - type: object
+                        properties:
+                          requestedDate:
+                            type: string
+                            format: date
+                            example: "2025-10-01"
+                  requestTimestamp:
+                    type: string
+                    format: date-time
+                  processingTime:
+                    type: integer
+        '400':
+          description: Invalid date format or date out of range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: NASA APOD API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /apod/range:
+    get:
+      summary: Get APOD for date range
+      description: |
+        The start of a date range, when requesting date for a range of dates. Cannot be used with date. Get Astronomy Pictures of the Day for a date range.
+        
+        Returns all APOD images between the start and end dates (inclusive).
+      operationId: getApodRange
+      tags:
+        - Astronomy Pictures
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-09-28"
+          description: The start of a date range, when requesting date for a range of dates. Cannot be used with date. (YYYY-MM-DD format)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-01"
+          description: The end of the date range, when used with start_date. (default - today)
+        - name: thumbs
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return the URL of video thumbnail. If an APOD is not a video, this parameter is ignored.
+      responses:
+        '200':
+          description: Successfully retrieved APOD for date range
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/APODRangeResponse'
+                  requestTimestamp:
+                    type: string
+                    format: date-time
+                  processingTime:
+                    type: integer
+        '400':
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: NASA APOD API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /apod/random:
+    get:
+      summary: Get random APOD images
+      description: |
+        If this is specified then count randomly chosen images will be returned. Cannot be used with date or start_date and end_date. Get randomly chosen Astronomy Pictures of the Day.
+        
+        Returns a specified number of randomly selected APOD images from the entire archive.
+      operationId: getApodRandom
+      tags:
+        - Astronomy Pictures
+      parameters:
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 1
+          example: 3
+          description: If this is specified then count randomly chosen images will be returned. Cannot be used with date or start_date and end_date. (default - 1, max - 100)
+        - name: thumbs
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return the URL of video thumbnail. If an APOD is not a video, this parameter is ignored.
+      responses:
+        '200':
+          description: Successfully retrieved random APOD images
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      source:
+                        type: string
+                        example: "NASA APOD API"
+                      requestedCount:
+                        type: integer
+                        example: 3
+                      actualCount:
+                        type: integer
+                        example: 3
+                      images:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/APODResponse'
+                      summary:
+                        type: object
+                        properties:
+                          totalImages:
+                            type: integer
+                          byMediaType:
+                            type: object
+                            properties:
+                              image:
+                                type: integer
+                              video:
+                                type: integer
+                  requestTimestamp:
+                    type: string
+                    format: date-time
+                  processingTime:
+                    type: integer
+        '400':
+          description: Invalid count parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: NASA APOD API unavailable
           content:
             application/json:
               schema:
@@ -3024,4 +3292,91 @@ components:
           type: integer
           example: 312
           description: Processing time in milliseconds
+
+    APODResponse:
+      type: object
+      properties:
+        source:
+          type: string
+          example: "NASA APOD API"
+        date:
+          type: string
+          format: date
+          example: "2025-10-01"
+          description: The date of the APOD image (YYYY-MM-DD format)
+        title:
+          type: string
+          example: "Astronomy Picture of the Day"
+          description: The title of the image or video
+        explanation:
+          type: string
+          example: "Ten thousand years ago, before the dawn of recorded human history..."
+          description: Detailed explanation of the astronomical phenomenon shown
+        mediaType:
+          type: string
+          enum: [image, video]
+          example: "image"
+          description: Type of media - "image" or "video"
+        url:
+          type: string
+          format: uri
+          example: "https://apod.nasa.gov/apod/image/2510/WitchBroom_Meyers_1080.jpg"
+          description: URL of the standard resolution image or video embed
+        hdurl:
+          type: string
+          format: uri
+          example: "https://apod.nasa.gov/apod/image/2510/WitchBroom_Meyers_6043.jpg"
+          description: URL of the high-definition image (only for images, not videos)
+        copyright:
+          type: string
+          example: "Brian Meyers"
+          description: Copyright holder of the image (may not be present for public domain images)
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: URL of video thumbnail (only present for videos when thumbs=true)
+        serviceVersion:
+          type: string
+          example: "v1"
+          description: Version of the APOD API service
+
+    APODRangeResponse:
+      type: object
+      properties:
+        source:
+          type: string
+          example: "NASA APOD API"
+        dateRange:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+              example: "2025-09-28"
+            endDate:
+              type: string
+              format: date
+              example: "2025-10-01"
+        totalImages:
+          type: integer
+          example: 4
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/APODResponse'
+        summary:
+          type: object
+          properties:
+            totalImages:
+              type: integer
+              example: 4
+            byMediaType:
+              type: object
+              properties:
+                image:
+                  type: integer
+                  example: 4
+                video:
+                  type: integer
+                  example: 0
 

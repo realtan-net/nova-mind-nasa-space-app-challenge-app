@@ -86,6 +86,14 @@ const config = {
     apiKey: process.env.NASA_API_KEY,
     timeout: parseInt(process.env.NASA_EPIC_TIMEOUT) || 30000,
     imageTypes: ['natural', 'enhanced']
+  },
+
+  nasaApod: {
+    baseUrl: process.env.NASA_APOD_BASE_URL || 'https://api.nasa.gov/planetary/apod',
+    apiKey: process.env.NASA_API_KEY,
+    timeout: parseInt(process.env.NASA_APOD_TIMEOUT) || 30000,
+    maxCount: 100,
+    defaultThumbsEnabled: false
   }
 };
 

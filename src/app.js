@@ -16,6 +16,7 @@ const asteroidRoutes = require('./routes/asteroidRoutes');
 const eonetRoutes = require('./routes/eonetRoutes');
 const openaqRoutes = require('./routes/openaqRoutes');
 const epicRoutes = require('./routes/epicRoutes');
+const apodRoutes = require('./routes/apodRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -93,6 +94,7 @@ class App {
     this.app.use('/api/eonet', eonetRoutes);
     this.app.use('/api/openaq', openaqRoutes);
     this.app.use('/api/epic', epicRoutes);
+    this.app.use('/api/apod', apodRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -126,6 +128,10 @@ class App {
           epicEnhancedImages: '/api/epic/enhanced/images',
           epicEnhancedImagesByDate: '/api/epic/enhanced/images/date/:date',
           epicEnhancedDates: '/api/epic/enhanced/dates',
+          apodToday: '/api/apod',
+          apodByDate: '/api/apod/date/:date',
+          apodRange: '/api/apod/range',
+          apodRandom: '/api/apod/random',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -166,6 +172,10 @@ class App {
           'GET /api/epic/enhanced/images - Get latest enhanced color Earth images',
           'GET /api/epic/enhanced/images/date/:date - Get enhanced color images by date',
           'GET /api/epic/enhanced/dates - Get all available dates for enhanced color imagery',
+          'GET /api/apod - Get today\'s Astronomy Picture of the Day',
+          'GET /api/apod/date/:date - Get APOD for specific date',
+          'GET /api/apod/range - Get APOD for date range',
+          'GET /api/apod/random - Get random APOD images',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -352,6 +362,17 @@ class App {
         console.log('✓ NASA EPIC API connection test successful');
       } else {
         console.warn('⚠ NASA EPIC API connection test failed:', epicStatus.message);
+      }
+
+      // Test NASA APOD API
+      const NasaApodService = require('./services/nasaApodService');
+      const apodService = new NasaApodService();
+      const apodStatus = await apodService.testConnectivity();
+      
+      if (apodStatus.status === 'connected') {
+        console.log('✓ NASA APOD API connection test successful');
+      } else {
+        console.warn('⚠ NASA APOD API connection test failed:', apodStatus.message);
       }
     } catch (error) {
       console.warn('⚠ Could not test API connections:', error.message);
