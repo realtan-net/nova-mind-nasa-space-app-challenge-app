@@ -14,6 +14,7 @@ const healthRoutes = require('./routes/healthRoutes');
 const geomagneticRoutes = require('./routes/geomagneticRoutes');
 const asteroidRoutes = require('./routes/asteroidRoutes');
 const eonetRoutes = require('./routes/eonetRoutes');
+const openaqRoutes = require('./routes/openaqRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -89,6 +90,7 @@ class App {
     this.app.use('/api/geomagnetic', geomagneticRoutes);
     this.app.use('/api/asteroids', asteroidRoutes);
     this.app.use('/api/eonet', eonetRoutes);
+    this.app.use('/api/openaq', openaqRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -113,6 +115,9 @@ class App {
           eonetEventsByCategory: '/api/eonet/events/category/:categoryId',
           eonetEventsRegional: '/api/eonet/events/regional',
           eonetEventsAnalysis: '/api/eonet/events/analysis',
+          openaqStations: '/api/openaq/stations',
+          openaqMeasurements: '/api/openaq/measurements/:sensorId',
+          openaqAirQuality: '/api/openaq/airquality',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -144,6 +149,9 @@ class App {
           'GET /api/eonet/events/category/:categoryId - Get category-specific events',
           'GET /api/eonet/events/regional - Get regional events with proximity analysis',
           'GET /api/eonet/events/analysis - Get events with trend analysis',
+          'GET /api/openaq/stations - Find air quality monitoring stations by coordinates',
+          'GET /api/openaq/measurements/:sensorId - Get latest measurements for a sensor',
+          'GET /api/openaq/airquality - Get comprehensive air quality assessment',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -308,6 +316,17 @@ class App {
         console.log('✓ NASA EONET API connection test successful');
       } else {
         console.warn('⚠ NASA EONET API connection test failed:', eonetStatus.message);
+      }
+
+      // Test OpenAQ API
+      const OpenaqService = require('./services/openaqService');
+      const openaqService = new OpenaqService();
+      const openaqStatus = await openaqService.testConnectivity();
+      
+      if (openaqStatus.status === 'connected') {
+        console.log('✓ OpenAQ API connection test successful');
+      } else {
+        console.warn('⚠ OpenAQ API connection test failed:', openaqStatus.message);
       }
     } catch (error) {
       console.warn('⚠ Could not test API connections:', error.message);

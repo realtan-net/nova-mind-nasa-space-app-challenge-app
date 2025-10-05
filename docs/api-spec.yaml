@@ -48,7 +48,9 @@ tags:
   - name: Asteroids
     description: Near Earth Object asteroid data based on closest approach dates
   - name: Natural Events
-    description: NASA EONET natural disaster event tracking and monitoring
+    description: Real-time natural disaster event monitoring via NASA EONET
+  - name: Air Quality
+    description: Real-time air quality monitoring and pollution data via OpenAQ
   - name: Health
     description: API health and status endpoints
 
@@ -700,6 +702,263 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EONETAnalysisEventsResponse'
+
+  /openaq/stations:
+    get:
+      summary: Find air quality monitoring stations
+      description: |
+        Find air quality monitoring stations near specified coordinates using OpenAQ API.
+        Returns stations sorted by distance from the provided location.
+      operationId: getOpenAQStations
+      tags:
+        - Air Quality
+      parameters:
+        - name: coordinates
+          in: query
+          required: true
+          description: Coordinates in format "latitude,longitude" (e.g., "41.0082,28.9784" for Istanbul)
+          schema:
+            type: string
+            pattern: '^-?\d+\.?\d*,-?\d+\.?\d*$'
+            example: "41.0082,28.9784"
+        - name: radius
+          in: query
+          required: false
+          description: Search radius in meters (default 25000m = 25km)
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 100000
+            default: 25000
+            example: 25000
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of stations to return (default 10)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Successfully retrieved air quality stations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAQStationsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No stations found in specified area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: OpenAQ API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /openaq/measurements/{sensorId}:
+    get:
+      summary: Get sensor measurements
+      description: |
+        Get the latest air quality measurement for a specific sensor.
+        Returns the most recent measurement with quality assessment.
+      operationId: getSensorMeasurements
+      tags:
+        - Air Quality
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          description: Unique sensor ID from OpenAQ
+          schema:
+            type: integer
+            example: 7017785
+      responses:
+        '200':
+          description: Successfully retrieved sensor measurements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAQMeasurementsResponse'
+        '400':
+          description: Invalid sensor ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No measurements found for sensor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: OpenAQ API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /openaq/airquality:
+    get:
+      summary: Get comprehensive air quality assessment
+      description: |
+        Get comprehensive air quality data and health assessment for a location.
+        This endpoint:
+        1. Finds the nearest active monitoring station
+        2. Fetches measurements for all available sensors (PM2.5, PM10, NO2, O3, SO2, CO)
+        3. Assesses air quality levels using international standards
+        4. Provides health recommendations
+        
+        **Air Quality Index (AQI) Standards:**
+        - **PM2.5**: Good (0-12), Moderate (12-35), Unhealthy for Sensitive (35-55), Unhealthy (55+) µg/m³
+        - **PM10**: Good (0-54), Moderate (54-154), Unhealthy (154+) µg/m³
+        - **NO2**: Good (0-40), Moderate (40-80), Unhealthy (80+) µg/m³
+        - **O3**: Good (0-100), Moderate (100-160), Unhealthy (160+) µg/m³
+      operationId: getAirQuality
+      tags:
+        - Air Quality
+      parameters:
+        - name: coordinates
+          in: query
+          required: true
+          description: Coordinates in format "latitude,longitude"
+          schema:
+            type: string
+            pattern: '^-?\d+\.?\d*,-?\d+\.?\d*$'
+            example: "41.0082,28.9784"
+        - name: radius
+          in: query
+          required: false
+          description: Search radius in meters (default 25000m)
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 100000
+            default: 25000
+            example: 25000
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of stations to check (default 10)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Successfully retrieved air quality assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAQAirQualityResponse'
+              examples:
+                goodQuality:
+                  summary: Good air quality example
+                  value:
+                    success: true
+                    data:
+                      station:
+                        id: 3517
+                        name: "İstanbul - Kağıthane"
+                        distance: 8840.17
+                        coordinates:
+                          latitude: 41.0832
+                          longitude: 28.9784
+                        lastUpdate:
+                          utc: "2023-10-11T10:00:00Z"
+                          local: "2023-10-11T13:00:00+03:00"
+                      measurements:
+                        - parameter: "PM2.5"
+                          parameterCode: "pm25"
+                          value: 10.5
+                          unit: "µg/m³"
+                          timestamp:
+                            utc: "2023-10-11T10:00:00Z"
+                          quality: "Good"
+                          level: 1
+                          color: "green"
+                        - parameter: "PM10"
+                          parameterCode: "pm10"
+                          value: 32.0
+                          unit: "µg/m³"
+                          timestamp:
+                            utc: "2023-10-11T10:00:00Z"
+                          quality: "Good"
+                          level: 1
+                          color: "green"
+                      assessment:
+                        overallQuality: "Good"
+                        overallLevel: 1
+                        overallColor: "green"
+                        overallIcon: "✅"
+                        primaryPollutant: "PM2.5"
+                        hasPM25: true
+                        description: "Air quality is good. It is safe to engage in outdoor activities."
+                      healthRecommendations:
+                        general: "Air quality is ideal for outdoor activities."
+                        sensitive: "No health concerns for sensitive groups."
+                        activities: "All outdoor activities are recommended."
+                    requestTimestamp: "2025-10-05T12:00:00Z"
+                unhealthyQuality:
+                  summary: Unhealthy air quality example
+                  value:
+                    success: true
+                    data:
+                      station:
+                        id: 3517
+                        name: "İstanbul - Kağıthane"
+                        distance: 8840.17
+                      measurements:
+                        - parameter: "PM2.5"
+                          parameterCode: "pm25"
+                          value: 68.5
+                          unit: "µg/m³"
+                          quality: "Unhealthy"
+                          level: 4
+                          color: "red"
+                      assessment:
+                        overallQuality: "Unhealthy"
+                        overallLevel: 4
+                        overallColor: "red"
+                        overallIcon: "❌"
+                        primaryPollutant: "PM2.5"
+                        description: "Air quality is unhealthy. Primary concern: PM2.5."
+                      healthRecommendations:
+                        general: "Everyone may begin to experience health effects."
+                        sensitive: "Members of sensitive groups may experience more serious health effects."
+                        activities: "Everyone should reduce prolonged or heavy outdoor exertion. Sensitive groups should avoid it entirely."
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No stations or measurements found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: OpenAQ API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /health:
     get:
@@ -2018,6 +2277,319 @@ components:
                       provided:
                         example: "95.0"
                 - type: object
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    OpenAQStationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 3517
+              name:
+                type: string
+                example: "İstanbul - Kağıthane"
+              distance:
+                type: number
+                format: float
+                description: Distance from search coordinates in meters
+                example: 8840.17
+              coordinates:
+                type: object
+                properties:
+                  latitude:
+                    type: number
+                    format: float
+                    example: 41.0832
+                  longitude:
+                    type: number
+                    format: float
+                    example: 28.9784
+              datetimeLast:
+                type: object
+                properties:
+                  utc:
+                    type: string
+                    format: date-time
+                    example: "2023-10-11T10:00:00Z"
+                  local:
+                    type: string
+                    format: date-time
+                    example: "2023-10-11T13:00:00+03:00"
+              sensors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 7017785
+                    parameter:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "pm25"
+                        units:
+                          type: string
+                          example: "µg/m³"
+        metadata:
+          type: object
+          properties:
+            searchLocation:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  format: float
+                  example: 41.0082
+                longitude:
+                  type: number
+                  format: float
+                  example: 28.9784
+            searchRadius:
+              type: integer
+              example: 25000
+            totalFound:
+              type: integer
+              example: 5
+            processingTimeMs:
+              type: integer
+              example: 342
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    OpenAQMeasurementsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: number
+                format: float
+                example: 28.5
+              parameter:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "pm25"
+                  displayName:
+                    type: string
+                    example: "PM2.5"
+                  units:
+                    type: string
+                    example: "µg/m³"
+              period:
+                type: object
+                properties:
+                  datetimeFrom:
+                    type: object
+                    properties:
+                      utc:
+                        type: string
+                        format: date-time
+                        example: "2023-10-11T09:00:00Z"
+                      local:
+                        type: string
+                        format: date-time
+                        example: "2023-10-11T12:00:00+03:00"
+                  datetimeTo:
+                    type: object
+                    properties:
+                      utc:
+                        type: string
+                        format: date-time
+                        example: "2023-10-11T10:00:00Z"
+                      local:
+                        type: string
+                        format: date-time
+                        example: "2023-10-11T13:00:00+03:00"
+              coverage:
+                type: object
+                properties:
+                  percentComplete:
+                    type: number
+                    format: float
+                    example: 100.0
+              assessment:
+                type: object
+                properties:
+                  quality:
+                    type: string
+                    enum: [Good, Moderate, Unhealthy for Sensitive Groups, Unhealthy, Unknown]
+                    example: "Good"
+                  level:
+                    type: integer
+                    minimum: 0
+                    maximum: 4
+                    example: 1
+                  color:
+                    type: string
+                    enum: [green, yellow, orange, red, gray]
+                    example: "green"
+                  icon:
+                    type: string
+                    example: "✅"
+                  description:
+                    type: string
+                    example: "Air quality is satisfactory, and air pollution poses little or no risk"
+        metadata:
+          type: object
+          properties:
+            sensorId:
+              type: integer
+              example: 7017785
+            totalFound:
+              type: integer
+              example: 1
+            processingTimeMs:
+              type: integer
+              example: 215
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    OpenAQAirQualityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            station:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 3517
+                name:
+                  type: string
+                  example: "İstanbul - Kağıthane"
+                distance:
+                  type: number
+                  format: float
+                  example: 8840.17
+                coordinates:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                      format: float
+                      example: 41.0832
+                    longitude:
+                      type: number
+                      format: float
+                      example: 28.9784
+                lastUpdate:
+                  type: object
+                  properties:
+                    utc:
+                      type: string
+                      format: date-time
+                      example: "2023-10-11T10:00:00Z"
+                    local:
+                      type: string
+                      format: date-time
+                      example: "2023-10-11T13:00:00+03:00"
+            measurements:
+              type: array
+              items:
+                type: object
+                properties:
+                  parameter:
+                    type: string
+                    example: "PM2.5"
+                  parameterCode:
+                    type: string
+                    example: "pm25"
+                  value:
+                    type: number
+                    format: float
+                    example: 25.4
+                  unit:
+                    type: string
+                    example: "µg/m³"
+                  timestamp:
+                    type: object
+                    properties:
+                      utc:
+                        type: string
+                        format: date-time
+                      local:
+                        type: string
+                        format: date-time
+                  quality:
+                    type: string
+                    enum: [Good, Moderate, Unhealthy for Sensitive Groups, Unhealthy, Unknown]
+                    example: "Moderate"
+                  level:
+                    type: integer
+                    minimum: 0
+                    maximum: 4
+                    example: 2
+                  color:
+                    type: string
+                    enum: [green, yellow, orange, red, gray]
+                    example: "yellow"
+            assessment:
+              type: object
+              properties:
+                overallQuality:
+                  type: string
+                  enum: [Good, Moderate, Unhealthy for Sensitive Groups, Unhealthy, No Data, Unknown]
+                  example: "Moderate"
+                overallLevel:
+                  type: integer
+                  minimum: 0
+                  maximum: 4
+                  example: 2
+                overallColor:
+                  type: string
+                  enum: [green, yellow, orange, red, gray]
+                  example: "yellow"
+                overallIcon:
+                  type: string
+                  example: "⚠️"
+                primaryPollutant:
+                  type: string
+                  example: "PM2.5"
+                hasPM25:
+                  type: boolean
+                  example: true
+                description:
+                  type: string
+                  example: "Air quality is moderate. Primary concern: PM2.5."
+            healthRecommendations:
+              type: object
+              properties:
+                general:
+                  type: string
+                  example: "Air quality is acceptable for most people."
+                sensitive:
+                  type: string
+                  example: "Unusually sensitive people should consider limiting prolonged outdoor exertion."
+                activities:
+                  type: string
+                  example: "Enjoy your usual outdoor activities."
         requestTimestamp:
           type: string
           format: date-time

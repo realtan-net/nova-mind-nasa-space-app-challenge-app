@@ -70,6 +70,14 @@ const config = {
     defaultLimit: 20,
     maxLimit: 100,
     defaultStatus: 'open'
+  },
+
+  openaq: {
+    baseUrl: process.env.OPENAQ_BASE_URL || 'https://api.openaq.org/v3',
+    apiKey: process.env.OPENAQ_API_KEY,
+    timeout: parseInt(process.env.OPENAQ_TIMEOUT) || 30000,
+    defaultRadius: 25000,
+    defaultLimit: 10
   }
 };
 
