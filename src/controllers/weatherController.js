@@ -34,17 +34,25 @@ class WeatherController {
       let weatherData;
       const requestDate = parseISO(date);
       
-      if (isFuture(requestDate)) {
-        // Future date - generate prediction
-        console.log('Future date detected, generating prediction...');
-        weatherData = await this.generatePrediction(
-          latitude, longitude, date, parameterList, historicalYears
-        );
-      } else {
-        // Historical date - fetch actual data
-        console.log('Historical date detected, fetching actual data...');
+      // NASA POWER API has a configurable data delay (default: 4 days)
+      // Calculate cutoff date: today minus delay days
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nasaDataCutoff = new Date(today);
+      const delayDays = require('../config/config').weather.nasaDataDelayDays;
+      nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
+      
+      if (requestDate < nasaDataCutoff) {
+        // Date is older than 4 days - fetch actual NASA historical data
+        console.log('Historical date detected (older than 4 days), fetching actual data...');
         weatherData = await this.fetchHistoricalData(
           latitude, longitude, date, parameterList
+        );
+      } else {
+        // Date is within last 4 days, today, or future - generate prediction
+        console.log('Date within NASA data delay window or future, generating prediction...');
+        weatherData = await this.generatePrediction(
+          latitude, longitude, date, parameterList, historicalYears
         );
       }
 
@@ -216,13 +224,22 @@ class WeatherController {
           const requestDate = parseISO(date);
           let weatherData;
           
-          if (isFuture(requestDate)) {
-            weatherData = await this.generatePrediction(
-              latitude, longitude, date, parameterList, historicalYears
-            );
-          } else {
+          // NASA POWER API has a configurable data delay (default: 4 days)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const nasaDataCutoff = new Date(today);
+          const delayDays = require('../config/config').weather.nasaDataDelayDays;
+          nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
+          
+          if (requestDate < nasaDataCutoff) {
+            // Date is older than 4 days - fetch actual NASA historical data
             weatherData = await this.fetchHistoricalData(
               latitude, longitude, date, parameterList
+            );
+          } else {
+            // Date is within last 4 days, today, or future - generate prediction
+            weatherData = await this.generatePrediction(
+              latitude, longitude, date, parameterList, historicalYears
             );
           }
           

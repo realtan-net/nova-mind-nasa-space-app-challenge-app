@@ -18,7 +18,8 @@ const config = {
     minHistoricalYears: parseInt(process.env.MIN_HISTORICAL_YEARS) || 5,
     defaultParameters: ['T2M', 'RH2M', 'WS10M', 'WD10M', 'PS', 'ALLSKY_SFC_SW_DWN'],
     maxParametersPerRequest: 20,
-    fillValue: -999.0
+    fillValue: -999.0,
+    nasaDataDelayDays: parseInt(process.env.NASA_DATA_DELAY_DAYS) || 4 // NASA POWER API has 4-day data delay
   },
   
   validation: {
