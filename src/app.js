@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+// const rateLimit = require('express-rate-limit'); // Rate limiting removed as per requirements
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
@@ -11,6 +11,7 @@ const path = require('path');
 const config = require('./config/config');
 const weatherRoutes = require('./routes/weatherRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const geomagneticRoutes = require('./routes/geomagneticRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -39,26 +40,8 @@ class App {
       credentials: false
     }));
 
-    // Rate limiting
-    const limiter = rateLimit({
-      windowMs: config.rateLimit.windowMs,
-      max: config.rateLimit.maxRequests,
-      message: {
-        success: false,
-        error: {
-          code: 'RATE_LIMIT',
-          message: 'Too many requests, please try again later.',
-          details: {
-            retryAfter: Math.ceil(config.rateLimit.windowMs / 1000)
-          }
-        },
-        requestTimestamp: new Date().toISOString()
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-
-    this.app.use('/api/', limiter);
+    // Rate limiting removed as per requirements
+    // Previously had rate limiting here, but removed for this implementation
 
     // Body parsing middleware
     this.app.use(express.json({ 
@@ -101,6 +84,7 @@ class App {
     // API Routes
     this.app.use('/api/weather', weatherRoutes);
     this.app.use('/api/health', healthRoutes);
+    this.app.use('/api/geomagnetic', geomagneticRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -114,6 +98,10 @@ class App {
           parameters: '/api/weather/parameters',
           historicalRange: '/api/weather/historical-range',
           bulk: '/api/weather/bulk',
+          geomagneticStorms: '/api/geomagnetic/storms',
+          forecast3Day: '/api/geomagnetic/forecast/3-day',
+          forecast27Day: '/api/geomagnetic/forecast/27-day',
+          forecastCombined: '/api/geomagnetic/forecast/combined',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -126,7 +114,7 @@ class App {
         success: true,
         api: 'NASA Weather Data API',
         version: '1.0.0',
-        description: 'Weather data and prediction service using NASA POWER API',
+        description: 'Weather data and prediction service using NASA POWER API and geomagnetic storm data',
         documentation: '/api-docs',
         contact: 'NASA Space Apps Challenge Team',
         endpoints: [
@@ -134,6 +122,10 @@ class App {
           'GET /api/weather/parameters - Get available parameters',
           'GET /api/weather/historical-range - Get data range for location',
           'POST /api/weather/bulk - Bulk weather data requests',
+          'GET /api/geomagnetic/storms - Get geomagnetic storm data (NASA DONKI)',
+          'GET /api/geomagnetic/forecast/3-day - Get 3-day geomagnetic forecast (NOAA SWPC)',
+          'GET /api/geomagnetic/forecast/27-day - Get 27-day geomagnetic outlook (NOAA SWPC)',
+          'GET /api/geomagnetic/forecast/combined - Get combined forecast data',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -245,17 +237,40 @@ class App {
 
   async testNasaConnection() {
     try {
+      // Test NASA POWER API
       const NasaPowerApiService = require('./services/nasaApiService');
       const nasaService = new NasaPowerApiService();
-      const status = await nasaService.testConnectivity();
+      const powerStatus = await nasaService.testConnectivity();
       
-      if (status.status === 'connected') {
+      if (powerStatus.status === 'connected') {
         console.log('✓ NASA POWER API connection test successful');
       } else {
-        console.warn('⚠ NASA POWER API connection test failed:', status.message);
+        console.warn('⚠ NASA POWER API connection test failed:', powerStatus.message);
+      }
+
+      // Test NASA DONKI API
+      const NasaDonkiService = require('./services/nasaDonkiService');
+      const donkiService = new NasaDonkiService();
+      const donkiStatus = await donkiService.testConnectivity();
+      
+      if (donkiStatus.status === 'connected') {
+        console.log('✓ NASA DONKI API connection test successful');
+      } else {
+        console.warn('⚠ NASA DONKI API connection test failed:', donkiStatus.message);
+      }
+
+      // Test NOAA SWPC Service
+      const NoaaSwpcService = require('./services/noaaSwpcService');
+      const swpcService = new NoaaSwpcService();
+      const swpcStatus = await swpcService.testConnectivity();
+      
+      if (swpcStatus.status === 'connected') {
+        console.log('✓ NOAA SWPC service connection test successful');
+      } else {
+        console.warn('⚠ NOAA SWPC service connection test failed:', swpcStatus.message);
       }
     } catch (error) {
-      console.warn('⚠ Could not test NASA API connection:', error.message);
+      console.warn('⚠ Could not test API connections:', error.message);
     }
   }
 

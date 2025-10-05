@@ -44,17 +44,6 @@ const config = {
 
   logging: {
     level: process.env.LOG_LEVEL || 'info'
-  },
-
-  nasaApi: {
-    apiKey: process.env.NASA_API_KEY,
-    donkiBaseUrl: process.env.NASA_DONKI_BASE_URL || 'https://api.nasa.gov/DONKI',
-    timeout: parseInt(process.env.NASA_API_TIMEOUT) || 30000
-  },
-
-  noaaSwpc: {
-    baseUrl: process.env.NOAA_SWPC_BASE_URL || 'https://services.swpc.noaa.gov/text',
-    timeout: parseInt(process.env.NOAA_SWPC_TIMEOUT) || 30000
   }
 };
 

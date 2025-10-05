@@ -2,23 +2,28 @@ openapi: 3.0.3
 info:
   title: NASA Weather Data API
   description: |
-    Weather data and prediction service using NASA POWER API.
+    Weather data and prediction service using NASA POWER API, plus geomagnetic storm data and forecasts.
     
     This API provides historical weather data and future weather predictions based on NASA POWER satellite data.
     For past dates, it returns actual historical measurements. For future dates, it calculates predictions
     using arithmetic mean of historical data from the past 20 years (configurable).
     
+    Additionally, the API provides geomagnetic storm data from NASA DONKI and forecasts from NOAA SWPC.
+    
     ## Features
     - Historical weather data from NASA POWER API
     - Weather predictions based on historical averages
+    - Geomagnetic storm data from NASA DONKI
+    - 3-day and 27-day geomagnetic forecasts from NOAA SWPC
     - Multiple weather parameters support
     - Bulk data processing
     - CSV and JSON output formats
     - Comprehensive error handling
     
-    ## Data Source
-    All weather data is sourced from NASA's POWER (Prediction Of Worldwide Energy Resources) API,
-    which provides satellite-derived meteorological data.
+    ## Data Sources
+    - **Weather Data**: NASA's POWER (Prediction Of Worldwide Energy Resources) API - satellite-derived meteorological data
+    - **Geomagnetic Storms**: NASA DONKI (Space Weather Database Of Notifications, Knowledge, Information)
+    - **Geomagnetic Forecasts**: NOAA Space Weather Prediction Center (SWPC)
   version: 1.0.0
   contact:
     name: NASA Space Apps Challenge Team
@@ -38,6 +43,8 @@ tags:
     description: Weather data retrieval and prediction endpoints
   - name: Weather Parameters
     description: Available weather parameters information
+  - name: Geomagnetic Data
+    description: Geomagnetic storm data and forecasts from NASA DONKI and NOAA SWPC
   - name: Health
     description: API health and status endpoints
 
@@ -218,6 +225,127 @@ paths:
                 $ref: '#/components/schemas/BulkResponse'
         '400':
           description: Invalid bulk request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /geomagnetic/storms:
+    get:
+      summary: Get geomagnetic storm data from NASA DONKI
+      description: |
+        Returns geomagnetic storm (GST) data from NASA's DONKI (Space Weather Database Of Notifications, Knowledge, Information) system.
+        Includes Kp index values, linked space weather events, and storm notifications.
+      operationId: getGeomagneticStorms
+      tags:
+        - Geomagnetic Data
+      parameters:
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-09-05"
+          description: Start date for storm data range (YYYY-MM-DD). Defaults to 30 days ago.
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-10-05"
+          description: End date for storm data range (YYYY-MM-DD). Defaults to current date.
+      responses:
+        '200':
+          description: Successfully retrieved geomagnetic storm data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeomagneticStormResponse'
+        '400':
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid NASA API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: NASA DONKI service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /geomagnetic/forecast/3-day:
+    get:
+      summary: Get 3-day geomagnetic forecast from NOAA SWPC
+      description: |
+        Returns the 3-day geomagnetic activity forecast from NOAA Space Weather Prediction Center.
+        Includes daily Kp index predictions and activity levels.
+      operationId: get3DayForecast
+      tags:
+        - Geomagnetic Data
+      responses:
+        '200':
+          description: Successfully retrieved 3-day forecast
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreeDayForecastResponse'
+        '503':
+          description: NOAA SWPC service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /geomagnetic/forecast/27-day:
+    get:
+      summary: Get 27-day geomagnetic outlook from NOAA SWPC
+      description: |
+        Returns the 27-day geomagnetic activity outlook from NOAA Space Weather Prediction Center.
+        Provides extended forecast for potential geomagnetic storms.
+      operationId: get27DayOutlook
+      tags:
+        - Geomagnetic Data
+      responses:
+        '200':
+          description: Successfully retrieved 27-day outlook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwentySevenDayOutlookResponse'
+        '503':
+          description: NOAA SWPC service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /geomagnetic/forecast/combined:
+    get:
+      summary: Get combined geomagnetic forecasts (3-day + 27-day)
+      description: |
+        Returns both 3-day and 27-day geomagnetic forecasts in a single response.
+        Useful for getting complete near-term and extended outlook data.
+      operationId: getCombinedForecast
+      tags:
+        - Geomagnetic Data
+      responses:
+        '200':
+          description: Successfully retrieved combined forecast data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CombinedForecastResponse'
+        '503':
+          description: NOAA SWPC service unavailable
           content:
             application/json:
               schema:
@@ -560,6 +688,247 @@ components:
         environment:
           type: string
           example: "development"
+
+    GeomagneticStormResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA DONKI GST"
+            dateRange:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                  example: "2025-09-05"
+                endDate:
+                  type: string
+                  format: date
+                  example: "2025-10-05"
+            storms:
+              type: array
+              items:
+                $ref: '#/components/schemas/GeomagneticStorm'
+            totalCount:
+              type: integer
+              example: 3
+            statistics:
+              type: object
+              properties:
+                maxKpIndex:
+                  type: number
+                  example: 7.33
+                averageKpIndex:
+                  type: number
+                  example: 6.15
+                totalKpObservations:
+                  type: integer
+                  example: 12
+                stormsWithMultipleKp:
+                  type: integer
+                  example: 2
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+          description: Processing time in milliseconds
+
+    GeomagneticStorm:
+      type: object
+      properties:
+        gstID:
+          type: string
+          example: "2025-09-30T03:00:00-GST-001"
+        startTime:
+          type: string
+          format: date-time
+          example: "2025-09-30T03:00:00Z"
+        allKpIndex:
+          type: array
+          items:
+            type: object
+            properties:
+              observedTime:
+                type: string
+                format: date-time
+              kpIndex:
+                type: number
+                example: 7.33
+              source:
+                type: string
+                example: "NOAA"
+        linkedEvents:
+          type: array
+          items:
+            type: object
+            properties:
+              activityID:
+                type: string
+                example: "2025-09-27T20:34:00-HSS-001"
+        link:
+          type: string
+          example: "https://webtools.ccmc.gsfc.nasa.gov/DONKI/view/GST/41517/-1"
+        submissionTime:
+          type: string
+          format: date-time
+        versionId:
+          type: integer
+          example: 1
+        sentNotifications:
+          type: array
+          items:
+            type: object
+
+    ThreeDayForecastResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NOAA SWPC 3-Day Geomagnetic Forecast"
+            issued:
+              type: string
+              format: date-time
+              example: "2025-10-05T00:30:00Z"
+            forecasts:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    example: "2025-10-05"
+                  kpIndex:
+                    type: number
+                    example: 4
+                  activityLevel:
+                    type: string
+                    example: "Active"
+                  stormLevel:
+                    type: string
+                    nullable: true
+                    example: "G1-Minor"
+            summary:
+              type: object
+              properties:
+                maxKp:
+                  type: number
+                  example: 4
+                averageKp:
+                  type: number
+                  example: 3.33
+                stormDays:
+                  type: integer
+                  example: 0
+                activeDays:
+                  type: integer
+                  example: 1
+                totalDays:
+                  type: integer
+                  example: 3
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    TwentySevenDayOutlookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NOAA SWPC 27-Day Geomagnetic Outlook"
+            issued:
+              type: string
+              format: date-time
+            outlooks:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  kpIndex:
+                    type: number
+                  description:
+                    type: string
+                    example: "Possible G1 Storm"
+                  stormLevel:
+                    type: string
+                    nullable: true
+                    example: "G1-Minor"
+            summary:
+              type: object
+              properties:
+                maxKp:
+                  type: number
+                averageKp:
+                  type: number
+                stormDays:
+                  type: integer
+                notableEvents:
+                  type: integer
+                totalDays:
+                  type: integer
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    CombinedForecastResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            forecast3Day:
+              type: object
+              description: 3-day forecast data
+            outlook27Day:
+              type: object
+              description: 27-day outlook data
+            combinedSummary:
+              type: object
+              properties:
+                totalForecastDays:
+                  type: integer
+                  example: 30
+                nearTerm:
+                  type: object
+                  description: Summary from 3-day forecast
+                extendedTerm:
+                  type: object
+                  description: Summary from 27-day outlook
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
 
     ErrorResponse:
       type: object
