@@ -47,6 +47,8 @@ tags:
     description: Geomagnetic storm data and forecasts from NASA DONKI and NOAA SWPC
   - name: Asteroids
     description: Near Earth Object asteroid data based on closest approach dates
+  - name: Natural Events
+    description: NASA EONET natural disaster event tracking and monitoring
   - name: Health
     description: API health and status endpoints
 
@@ -404,6 +406,300 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /eonet/categories:
+    get:
+      summary: Get all event categories
+      description: Fetch all available natural event categories from NASA EONET. Lists all event categories (e.g., "wildfires", "severeStorms").
+      operationId: getEonetCategories
+      tags:
+        - Natural Events
+      responses:
+        '200':
+          description: Successfully retrieved event categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      source:
+                        type: string
+                        example: "NASA EONET API"
+                      totalCategories:
+                        type: integer
+                        example: 13
+                      categories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EONETCategory'
+                  requestTimestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-10-05T12:00:00Z"
+                  processingTime:
+                    type: integer
+                    example: 145
+                    description: Processing time in milliseconds
+
+  /eonet/events:
+    get:
+      summary: Get natural disaster events
+      description: |
+        Quickly get a global snapshot of the most recent major events. Default returns "open" (ongoing) events. 
+        
+        **Use Case**: Dashboard initial load for "Current Natural Events" list.
+        
+        **Presentation Logic**: Card list (icon by category), last event timestamp + short magnitude label (e.g., "55 kts").
+      operationId: getEonetEvents
+      tags:
+        - Natural Events
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed]
+            default: open
+          example: "open"
+          description: Event status - "open" for ongoing events or "closed" for ended events
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 5
+          description: Maximum number of events to return (default 20, max 100)
+      responses:
+        '200':
+          description: Successfully retrieved natural disaster events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EONETEventsResponse'
+
+  /eonet/events/geojson:
+    get:
+      summary: Get events in GeoJSON format
+      description: |
+        Provides the same event data in GeoJSON format for mapping libraries (Leaflet, Google Maps).
+        
+        **Use Case**: Direct integration with map visualization libraries.
+      operationId: getEonetEventsGeoJSON
+      tags:
+        - Natural Events
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed]
+            default: open
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [drought, dustHaze, earthquakes, floods, landslides, manmade, seaLakeIce, severeStorms, snow, tempExtremes, volcanoes, waterColor, wildfires]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successfully retrieved events in GeoJSON format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    description: GeoJSON FeatureCollection
+
+  /eonet/events/category/{categoryId}:
+    get:
+      summary: Get category-specific events
+      description: |
+        Category-focused risk monitoring (e.g., fire smoke / air quality impact).
+        
+        **Use Case**: Input trigger for air quality or environmental alert module.
+        
+        **Presentation Logic**: In "Active Wildfires" section, show size (acres) + last update; if data is older than 48 hours, display a "stale data" tag.
+      operationId: getEonetEventsByCategory
+      tags:
+        - Natural Events
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [drought, dustHaze, earthquakes, floods, landslides, manmade, seaLakeIce, severeStorms, snow, tempExtremes, volcanoes, waterColor, wildfires]
+          example: "wildfires"
+          description: Category ID (e.g., "wildfires", "severeStorms")
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed]
+            default: open
+          description: Event status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 3
+          description: Maximum number of events to return
+      responses:
+        '200':
+          description: Successfully retrieved category-specific events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EONETEventsResponse'
+        '400':
+          description: Invalid category ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EONETErrorResponse'
+
+  /eonet/events/regional:
+    get:
+      summary: Get regional events with proximity analysis
+      description: |
+        Detect if there are any events near the user's active location (local risk awareness).
+        
+        **Use Case**: After user selects location; compute distance and classify "<50 km: High Risk", "50–150 km: Medium".
+        
+        **Presentation Logic**: Map pin + single-line alert ("Nearby active wildfire"). If event date is old, display in grey.
+      operationId: getEonetEventsRegional
+      tags:
+        - Natural Events
+      parameters:
+        - name: bbox
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$'
+          example: "26.5,38.0,28.0,39.0"
+          description: Bounding box coordinates "minLon,minLat,maxLon,maxLat"
+        - name: userLat
+          in: query
+          required: false
+          schema:
+            type: number
+            format: float
+          example: 38.5
+          description: User's latitude for distance calculation
+        - name: userLon
+          in: query
+          required: false
+          schema:
+            type: number
+            format: float
+          example: 27.0
+          description: User's longitude for distance calculation
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed]
+            default: open
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successfully retrieved regional events with proximity data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EONETRegionalEventsResponse'
+
+  /eonet/events/analysis:
+    get:
+      summary: Get events with trend analysis
+      description: |
+        Identify storm evolution (strengthening / weakening trend) over specific time period.
+        
+        **Use Case**: To enhance PoP (probability of precipitation) or wind risk commentary with "regional tropical system activity" context.
+        
+        **Presentation Logic**: Mini timeline (arrows showing kts increase/decrease) + label "Trend: strengthening / stable / weakening."
+      operationId: getEonetEventsAnalysis
+      tags:
+        - Natural Events
+      parameters:
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [drought, dustHaze, earthquakes, floods, landslides, manmade, seaLakeIce, severeStorms, snow, tempExtremes, volcanoes, waterColor, wildfires]
+          example: "severeStorms"
+          description: Category ID for trend analysis
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-09-28"
+          description: Start date (YYYY-MM-DD format)
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-04"
+          description: End date (YYYY-MM-DD format)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successfully retrieved events with trend analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EONETAnalysisEventsResponse'
 
   /health:
     get:
@@ -1283,6 +1579,411 @@ components:
                 expected:
                   type: string
                   example: "YYYY-MM-DD"
+        requestTimestamp:
+          type: string
+          format: date-time
+
+    EONETCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "wildfires"
+          description: Category identifier
+        title:
+          type: string
+          example: "Wildfires"
+          description: Human-readable category name
+        description:
+          type: string
+          example: "Wildland fires includes all nature of fire, in forest and plains, as well as those that spread to become urban and industrial fire events. Fires may be naturally caused or manmade."
+          description: Detailed description of what events this category includes
+        link:
+          type: string
+          format: uri
+          example: "https://eonet.gsfc.nasa.gov/api/v3/categories/wildfires"
+          description: URL to category-specific endpoint
+        layersUrl:
+          type: string
+          format: uri
+          example: "https://eonet.gsfc.nasa.gov/api/v3/layers/wildfires"
+          description: URL to associated map layers for visualization
+
+    EONETEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "EONET_15683"
+          description: Unique identifier for the event
+        title:
+          type: string
+          example: "Tropical Cyclone 02A"
+          description: Title/name of the event
+        description:
+          type: string
+          nullable: true
+          example: "6 Miles N from Ketchum, ID"
+          description: Additional description or location details (may be null)
+        link:
+          type: string
+          format: uri
+          example: "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_15683"
+          description: Direct link to the specific event in EONET API
+        status:
+          type: string
+          enum: [open, closed]
+          example: "open"
+        closedDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date when the event was closed/ended (null if still open)
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "severeStorms"
+              title:
+                type: string
+                example: "Severe Storms"
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "JTWC"
+              url:
+                type: string
+                format: uri
+        geometry:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date-time
+              type:
+                type: string
+                example: "Point"
+              coordinates:
+                type: object
+                properties:
+                  longitude:
+                    type: number
+                  latitude:
+                    type: number
+              magnitude:
+                type: object
+                properties:
+                  value:
+                    type: number
+                    nullable: true
+                  unit:
+                    type: string
+                    nullable: true
+        currentMagnitude:
+          type: object
+          properties:
+            value:
+              type: number
+              nullable: true
+            unit:
+              type: string
+              nullable: true
+            label:
+              type: string
+        lastUpdate:
+          type: string
+          format: date-time
+        isStaleData:
+          type: boolean
+
+    EONETEventsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA EONET API"
+            filters:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "open"
+                limit:
+                  type: integer
+                  example: 5
+            totalEvents:
+              type: integer
+              example: 2
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/EONETEvent'
+            summary:
+              type: object
+              properties:
+                totalEvents:
+                  type: integer
+                byCategory:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                averageMagnitude:
+                  type: object
+                  additionalProperties:
+                    type: number
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    EONETRegionalEventsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA EONET API"
+            region:
+              type: object
+              properties:
+                bbox:
+                  type: object
+                  properties:
+                    minLongitude:
+                      type: number
+                    minLatitude:
+                      type: number
+                    maxLongitude:
+                      type: number
+                    maxLatitude:
+                      type: number
+                userLocation:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+            totalEvents:
+              type: integer
+            events:
+              type: array
+              items:
+                type: object
+                allOf:
+                  - $ref: '#/components/schemas/EONETEvent'
+                  - type: object
+                    properties:
+                      location:
+                        type: object
+                        properties:
+                          longitude:
+                            type: number
+                          latitude:
+                            type: number
+                      proximityToUser:
+                        type: object
+                        properties:
+                          distanceKm:
+                            type: number
+                          distanceMiles:
+                            type: number
+                          riskLevel:
+                            type: string
+                            enum: [HIGH, MEDIUM, LOW]
+                          riskDescription:
+                            type: string
+                          alert:
+                            type: string
+            summary:
+              type: object
+              properties:
+                byRiskLevel:
+                  type: object
+                  properties:
+                    high:
+                      type: integer
+                    medium:
+                      type: integer
+                    low:
+                      type: integer
+                nearestEvent:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    distanceKm:
+                      type: number
+                    riskLevel:
+                      type: string
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    EONETAnalysisEventsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA EONET API"
+            category:
+              type: object
+              properties:
+                id:
+                  type: string
+                title:
+                  type: string
+            dateRange:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date
+                end:
+                  type: string
+                  format: date
+            totalEvents:
+              type: integer
+            events:
+              type: array
+              items:
+                type: object
+                allOf:
+                  - $ref: '#/components/schemas/EONETEvent'
+                  - type: object
+                    properties:
+                      timeline:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              format: date-time
+                            coordinates:
+                              type: object
+                              properties:
+                                longitude:
+                                  type: number
+                                latitude:
+                                  type: number
+                            magnitude:
+                              type: object
+                              properties:
+                                value:
+                                  type: number
+                                unit:
+                                  type: string
+                      trendAnalysis:
+                        type: object
+                        properties:
+                          trend:
+                            type: string
+                            enum: [strengthening, weakening, stable]
+                          trendLabel:
+                            type: string
+                          magnitudeChange:
+                            type: object
+                            properties:
+                              initial:
+                                type: number
+                              peak:
+                                type: number
+                              final:
+                                type: number
+                              totalIncrease:
+                                type: number
+                              percentageChange:
+                                type: number
+                          timelineArrows:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                from:
+                                  type: string
+                                  format: date-time
+                                to:
+                                  type: string
+                                  format: date-time
+                                direction:
+                                  type: string
+                                change:
+                                  type: string
+                          averageChangePerInterval:
+                            type: number
+                          isIntensifying:
+                            type: boolean
+            summary:
+              type: object
+              properties:
+                trendDistribution:
+                  type: object
+                  properties:
+                    strengthening:
+                      type: integer
+                    weakening:
+                      type: integer
+                    stable:
+                      type: integer
+                averagePeakMagnitude:
+                  type: number
+                dateRangeCoverage:
+                  type: string
+        requestTimestamp:
+          type: string
+          format: date-time
+        processingTime:
+          type: integer
+
+    EONETErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "INVALID_CATEGORY"
+            message:
+              type: string
+              example: "Invalid category ID provided"
+            details:
+              type: object
         requestTimestamp:
           type: string
           format: date-time

@@ -13,6 +13,7 @@ const weatherRoutes = require('./routes/weatherRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const geomagneticRoutes = require('./routes/geomagneticRoutes');
 const asteroidRoutes = require('./routes/asteroidRoutes');
+const eonetRoutes = require('./routes/eonetRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -87,6 +88,7 @@ class App {
     this.app.use('/api/health', healthRoutes);
     this.app.use('/api/geomagnetic', geomagneticRoutes);
     this.app.use('/api/asteroids', asteroidRoutes);
+    this.app.use('/api/eonet', eonetRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -105,6 +107,12 @@ class App {
           forecast27Day: '/api/geomagnetic/forecast/27-day',
           forecastCombined: '/api/geomagnetic/forecast/combined',
           asteroidFeed: '/api/asteroids/feed',
+          eonetCategories: '/api/eonet/categories',
+          eonetEvents: '/api/eonet/events',
+          eonetEventsGeoJSON: '/api/eonet/events/geojson',
+          eonetEventsByCategory: '/api/eonet/events/category/:categoryId',
+          eonetEventsRegional: '/api/eonet/events/regional',
+          eonetEventsAnalysis: '/api/eonet/events/analysis',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -130,6 +138,12 @@ class App {
           'GET /api/geomagnetic/forecast/27-day - Get 27-day geomagnetic outlook (NOAA SWPC)',
           'GET /api/geomagnetic/forecast/combined - Get combined forecast data',
           'GET /api/asteroids/feed - Get asteroid data by closest approach date',
+          'GET /api/eonet/categories - Get all natural event categories',
+          'GET /api/eonet/events - Get natural disaster events with filters',
+          'GET /api/eonet/events/geojson - Get events in GeoJSON format',
+          'GET /api/eonet/events/category/:categoryId - Get category-specific events',
+          'GET /api/eonet/events/regional - Get regional events with proximity analysis',
+          'GET /api/eonet/events/analysis - Get events with trend analysis',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -283,6 +297,17 @@ class App {
         console.log('✓ NASA NeoWs API connection test successful');
       } else {
         console.warn('⚠ NASA NeoWs API connection test failed:', neowsStatus.message);
+      }
+
+      // Test NASA EONET API
+      const NasaEonetService = require('./services/nasaEonetService');
+      const eonetService = new NasaEonetService();
+      const eonetStatus = await eonetService.testConnectivity();
+      
+      if (eonetStatus.status === 'connected') {
+        console.log('✓ NASA EONET API connection test successful');
+      } else {
+        console.warn('⚠ NASA EONET API connection test failed:', eonetStatus.message);
       }
     } catch (error) {
       console.warn('⚠ Could not test API connections:', error.message);

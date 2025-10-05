@@ -62,6 +62,14 @@ const config = {
     apiKey: process.env.NASA_API_KEY,
     timeout: parseInt(process.env.NASA_NEOWS_TIMEOUT) || 30000,
     defaultDateRange: 7 // 7 days after start_date if end_date not provided
+  },
+
+  nasaEonet: {
+    baseUrl: process.env.NASA_EONET_BASE_URL || 'https://eonet.gsfc.nasa.gov/api/v3',
+    timeout: parseInt(process.env.NASA_EONET_TIMEOUT) || 30000,
+    defaultLimit: 20,
+    maxLimit: 100,
+    defaultStatus: 'open'
   }
 };
 
