@@ -15,6 +15,7 @@ const geomagneticRoutes = require('./routes/geomagneticRoutes');
 const asteroidRoutes = require('./routes/asteroidRoutes');
 const eonetRoutes = require('./routes/eonetRoutes');
 const openaqRoutes = require('./routes/openaqRoutes');
+const epicRoutes = require('./routes/epicRoutes');
 const ErrorHandler = require('./middleware/errorHandler');
 
 class App {
@@ -91,6 +92,7 @@ class App {
     this.app.use('/api/asteroids', asteroidRoutes);
     this.app.use('/api/eonet', eonetRoutes);
     this.app.use('/api/openaq', openaqRoutes);
+    this.app.use('/api/epic', epicRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -118,6 +120,12 @@ class App {
           openaqStations: '/api/openaq/stations',
           openaqMeasurements: '/api/openaq/measurements/:sensorId',
           openaqAirQuality: '/api/openaq/airquality',
+          epicNaturalImages: '/api/epic/natural/images',
+          epicNaturalImagesByDate: '/api/epic/natural/images/date/:date',
+          epicNaturalDates: '/api/epic/natural/dates',
+          epicEnhancedImages: '/api/epic/enhanced/images',
+          epicEnhancedImagesByDate: '/api/epic/enhanced/images/date/:date',
+          epicEnhancedDates: '/api/epic/enhanced/dates',
           health: '/api/health'
         },
         timestamp: new Date().toISOString()
@@ -152,6 +160,12 @@ class App {
           'GET /api/openaq/stations - Find air quality monitoring stations by coordinates',
           'GET /api/openaq/measurements/:sensorId - Get latest measurements for a sensor',
           'GET /api/openaq/airquality - Get comprehensive air quality assessment',
+          'GET /api/epic/natural/images - Get latest natural color Earth images',
+          'GET /api/epic/natural/images/date/:date - Get natural color images by date',
+          'GET /api/epic/natural/dates - Get all available dates for natural color imagery',
+          'GET /api/epic/enhanced/images - Get latest enhanced color Earth images',
+          'GET /api/epic/enhanced/images/date/:date - Get enhanced color images by date',
+          'GET /api/epic/enhanced/dates - Get all available dates for enhanced color imagery',
           'GET /api/health - Health check'
         ],
         timestamp: new Date().toISOString()
@@ -327,6 +341,17 @@ class App {
         console.log('✓ OpenAQ API connection test successful');
       } else {
         console.warn('⚠ OpenAQ API connection test failed:', openaqStatus.message);
+      }
+
+      // Test NASA EPIC API
+      const NasaEpicService = require('./services/nasaEpicService');
+      const epicService = new NasaEpicService();
+      const epicStatus = await epicService.testConnectivity();
+      
+      if (epicStatus.status === 'connected') {
+        console.log('✓ NASA EPIC API connection test successful');
+      } else {
+        console.warn('⚠ NASA EPIC API connection test failed:', epicStatus.message);
       }
     } catch (error) {
       console.warn('⚠ Could not test API connections:', error.message);

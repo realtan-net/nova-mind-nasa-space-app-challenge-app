@@ -51,6 +51,8 @@ tags:
     description: Real-time natural disaster event monitoring via NASA EONET
   - name: Air Quality
     description: Real-time air quality monitoring and pollution data via OpenAQ
+  - name: Earth Imagery
+    description: NASA EPIC Earth Polychromatic Imaging Camera - Full-disk Earth images
   - name: Health
     description: API health and status endpoints
 
@@ -955,6 +957,242 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: OpenAQ API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epic/natural/images:
+    get:
+      summary: Get latest natural color Earth images
+      description: |
+        Metadata on the most recent date of natural color imagery. This request returns a list of the latest available images in JSON format.
+        
+        The EPIC camera onboard the NOAA DSCOVR spacecraft captures full-disk Earth images approximately every 2 hours.
+      operationId: getEpicNaturalImages
+      tags:
+        - Earth Imagery
+      responses:
+        '200':
+          description: Successfully retrieved natural color images
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICImagesResponse'
+              example:
+                success: true
+                data:
+                  source: "NASA EPIC API"
+                  imageType: "natural"
+                  totalImages: 1
+                  images:
+                    - identifier: "20251005011359"
+                      imageName: "epic_1b_20251005011359"
+                      caption: "This image was taken by NASA's EPIC camera onboard the NOAA DSCOVR spacecraft"
+                      version: "03"
+                      date: "2025-10-05 01:13:59"
+                      downloadUrl: "https://api.nasa.gov/EPIC/archive/natural/2025/10/05/png/epic_1b_20251005011359.png?api_key=KEY"
+                      thumbnailUrl: "https://api.nasa.gov/EPIC/archive/natural/2025/10/05/jpg/epic_1b_20251005011359.jpg?api_key=KEY"
+                      centroidCoordinates:
+                        latitude: 5.25
+                        longitude: -157.5
+                requestTimestamp: "2025-10-05T12:00:00Z"
+                processingTime: 234
+        '502':
+          description: NASA EPIC API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epic/natural/images/date/{date}:
+    get:
+      summary: Get natural color images by date
+      description: |
+        Metadata for natural color imagery available for a given date.
+        
+        Returns all images captured on the specified date.
+      operationId: getEpicNaturalImagesByDate
+      tags:
+        - Earth Imagery
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-05"
+          description: Date in YYYY-MM-DD format
+      responses:
+        '200':
+          description: Successfully retrieved natural color images for date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICImagesResponse'
+        '400':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: "INVALID_DATE_FORMAT"
+                  message: "Invalid date format"
+                  details:
+                    provided: "2025/10/05"
+                    expected: "YYYY-MM-DD"
+                    example: "2025-10-05"
+                requestTimestamp: "2025-10-05T12:00:00Z"
+        '404':
+          description: No images found for specified date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: "NO_IMAGES_FOUND"
+                  message: "No images found for the specified date"
+                  details:
+                    requestedDate: "2025-10-05"
+                    imageType: "natural"
+                    suggestion: "Try another date or check available dates endpoint"
+                requestTimestamp: "2025-10-05T12:00:00Z"
+
+  /epic/natural/dates:
+    get:
+      summary: Get all available dates for natural color imagery
+      description: |
+        A listing of all dates with available natural color imagery.
+        
+        Returns a comprehensive list of all dates from 2015-06-13 (DSCOVR launch) to present where natural color images are available.
+      operationId: getEpicNaturalDates
+      tags:
+        - Earth Imagery
+      responses:
+        '200':
+          description: Successfully retrieved available dates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICDatesResponse'
+              example:
+                success: true
+                data:
+                  source: "NASA EPIC API"
+                  imageType: "natural"
+                  totalDates: 2456
+                  dateRange:
+                    earliest: "2015-06-13"
+                    latest: "2025-10-05"
+                  dates:
+                    - "2015-06-13"
+                    - "2015-06-14"
+                    - "2025-10-05"
+                requestTimestamp: "2025-10-05T12:00:00Z"
+                processingTime: 312
+        '502':
+          description: NASA EPIC API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epic/enhanced/images:
+    get:
+      summary: Get latest enhanced color Earth images
+      description: |
+        Metadata on the most recent date of enhanced color imagery.
+        
+        Enhanced color images are processed to show Earth in false color with enhanced atmospheric features.
+      operationId: getEpicEnhancedImages
+      tags:
+        - Earth Imagery
+      responses:
+        '200':
+          description: Successfully retrieved enhanced color images
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICImagesResponse'
+        '502':
+          description: NASA EPIC API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epic/enhanced/images/date/{date}:
+    get:
+      summary: Get enhanced color images by date
+      description: |
+        Metadata for enhanced color imagery for a given date.
+        
+        Returns all enhanced images captured on the specified date.
+      operationId: getEpicEnhancedImagesByDate
+      tags:
+        - Earth Imagery
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-05"
+          description: Date in YYYY-MM-DD format
+      responses:
+        '200':
+          description: Successfully retrieved enhanced color images for date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICImagesResponse'
+        '400':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No images found for specified date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epic/enhanced/dates:
+    get:
+      summary: Get all available dates for enhanced color imagery
+      description: |
+        A listing of all dates with available enhanced color imagery.
+        
+        Returns a comprehensive list of all dates where enhanced color images are available.
+      operationId: getEpicEnhancedDates
+      tags:
+        - Earth Imagery
+      responses:
+        '200':
+          description: Successfully retrieved available dates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EPICDatesResponse'
+        '502':
+          description: NASA EPIC API unavailable
           content:
             application/json:
               schema:
@@ -2593,3 +2831,197 @@ components:
         requestTimestamp:
           type: string
           format: date-time
+
+    EPICImagesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA EPIC API"
+            imageType:
+              type: string
+              enum: [natural, enhanced]
+              example: "natural"
+            requestedDate:
+              type: string
+              format: date
+              example: "2025-10-05"
+              description: Only present when filtering by date
+            totalImages:
+              type: integer
+              example: 13
+            images:
+              type: array
+              items:
+                $ref: '#/components/schemas/EPICImage'
+        requestTimestamp:
+          type: string
+          format: date-time
+          example: "2025-10-05T12:00:00Z"
+        processingTime:
+          type: integer
+          example: 234
+          description: Processing time in milliseconds
+
+    EPICImage:
+      type: object
+      properties:
+        identifier:
+          type: string
+          example: "20251005011359"
+          description: Unique identifier for the image
+        imageName:
+          type: string
+          example: "epic_1b_20251005011359"
+          description: The name of the image file
+        caption:
+          type: string
+          example: "This image was taken by NASA's EPIC camera onboard the NOAA DSCOVR spacecraft"
+          description: Description of the image
+        version:
+          type: string
+          example: "03"
+          description: Version number of the image processing
+        date:
+          type: string
+          format: date-time
+          example: "2025-10-05 01:13:59"
+          description: The date and time the image was captured
+        downloadUrl:
+          type: string
+          format: uri
+          example: "https://api.nasa.gov/EPIC/archive/natural/2025/10/05/png/epic_1b_20251005011359.png?api_key=KEY"
+          description: URL to download the full-resolution PNG image
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: "https://api.nasa.gov/EPIC/archive/natural/2025/10/05/jpg/epic_1b_20251005011359.jpg?api_key=KEY"
+          description: URL to download the thumbnail JPG image
+        centroidCoordinates:
+          type: object
+          description: Geographic coordinates where Earth's center appears in the image
+          properties:
+            latitude:
+              type: number
+              format: float
+              example: 5.25
+              description: Latitude in degrees
+            longitude:
+              type: number
+              format: float
+              example: -157.5
+              description: Longitude in degrees
+        spacecraftPosition:
+          type: object
+          description: Positions of spacecraft, Moon, and Sun in J2000 coordinate system (km)
+          properties:
+            dscovr:
+              type: object
+              description: Position of DSCOVR spacecraft in J2000 coordinate system (km)
+              properties:
+                x:
+                  type: number
+                  example: -1377129.375815
+                y:
+                  type: number
+                  example: -589567.312449
+                z:
+                  type: number
+                  example: -230642.558522
+            lunar:
+              type: object
+              description: Position of the Moon in J2000 coordinate system (km)
+              properties:
+                x:
+                  type: number
+                  example: -132801.875437
+                y:
+                  type: number
+                  example: 360433.125661
+                z:
+                  type: number
+                  example: 115380.875553
+            sun:
+              type: object
+              description: Position of the Sun in J2000 coordinate system (km)
+              properties:
+                x:
+                  type: number
+                  example: 135788507.832266
+                y:
+                  type: number
+                  example: -66825516.632082
+                z:
+                  type: number
+                  example: -28968738.881988
+        attitudeQuaternions:
+          type: object
+          description: Spacecraft orientation as quaternions
+          properties:
+            q0:
+              type: number
+              example: -0.231762
+            q1:
+              type: number
+              example: -0.260213
+            q2:
+              type: number
+              example: 0.208566
+            q3:
+              type: number
+              example: 0.918329
+
+    EPICDatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "NASA EPIC API"
+            imageType:
+              type: string
+              enum: [natural, enhanced]
+              example: "natural"
+            totalDates:
+              type: integer
+              example: 2456
+            dateRange:
+              type: object
+              properties:
+                earliest:
+                  type: string
+                  format: date
+                  example: "2015-06-13"
+                latest:
+                  type: string
+                  format: date
+                  example: "2025-10-05"
+            dates:
+              type: array
+              items:
+                type: string
+                format: date
+              example:
+                - "2015-06-13"
+                - "2015-06-14"
+                - "2025-10-05"
+        requestTimestamp:
+          type: string
+          format: date-time
+          example: "2025-10-05T12:00:00Z"
+        processingTime:
+          type: integer
+          example: 312
+          description: Processing time in milliseconds
+

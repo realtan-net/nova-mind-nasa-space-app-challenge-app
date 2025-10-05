@@ -78,6 +78,14 @@ const config = {
     timeout: parseInt(process.env.OPENAQ_TIMEOUT) || 30000,
     defaultRadius: 25000,
     defaultLimit: 10
+  },
+
+  nasaEpic: {
+    baseUrl: process.env.NASA_EPIC_BASE_URL || 'https://api.nasa.gov/EPIC/api',
+    archiveUrl: process.env.NASA_EPIC_ARCHIVE_URL || 'https://api.nasa.gov/EPIC/archive',
+    apiKey: process.env.NASA_API_KEY,
+    timeout: parseInt(process.env.NASA_EPIC_TIMEOUT) || 30000,
+    imageTypes: ['natural', 'enhanced']
   }
 };
 
