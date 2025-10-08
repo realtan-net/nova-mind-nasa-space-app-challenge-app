@@ -37,8 +37,8 @@ A comprehensive Node.js backend API that provides weather data and predictions u
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-repo/nasa-weather-api.git
-   cd nasa-weather-api
+   git clone https://github.com/realtan-net/nova-mind-nasa-space-app-challenge-app
+   cd nova-mind-nasa-space-app-challenge-app
    ```
 
 2. **Install dependencies**
@@ -68,9 +68,12 @@ A comprehensive Node.js backend API that provides weather data and predictions u
 
 ## ⚙️ Configuration
 
+Create .env file
 ### Environment Variables
 
 ```env
+# Environment variables for NASA Weather API
+
 # Server Configuration
 NODE_ENV=development
 PORT=3000
@@ -85,12 +88,42 @@ DEFAULT_HISTORICAL_YEARS=20
 MAX_HISTORICAL_YEARS=30
 MIN_HISTORICAL_YEARS=5
 
+# Logging
+LOG_LEVEL=info
+
 # CORS Configuration
 CORS_ORIGIN=*
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
+
+# NASA DONKI API Configuration
+NASA_API_KEY=
+NASA_DONKI_BASE_URL=https://api.nasa.gov/DONKI
+NASA_API_TIMEOUT=30000
+
+# NOAA SWPC Configuration
+NOAA_SWPC_BASE_URL=https://services.swpc.noaa.gov/text
+NOAA_SWPC_TIMEOUT=30000
+
+# NASA NeoWs API Configuration
+NASA_NEOWS_BASE_URL=https://api.nasa.gov/neo/rest/v1
+NASA_NEOWS_TIMEOUT=30000
+
+# OpenAQ Air Quality API Configuration
+OPENAQ_BASE_URL=https://api.openaq.org/v3
+OPENAQ_API_KEY=
+OPENAQ_TIMEOUT=30000
+
+# NASA EPIC (Earth Polychromatic Imaging Camera) Configuration
+NASA_EPIC_BASE_URL=https://api.nasa.gov/EPIC/api
+NASA_EPIC_ARCHIVE_URL=https://api.nasa.gov/EPIC/archive
+NASA_EPIC_TIMEOUT=30000
+
+# NASA APOD (Astronomy Picture of the Day) Configuration
+NASA_APOD_BASE_URL=https://api.nasa.gov/planetary/apod
+NASA_APOD_TIMEOUT=30000
 ```
 
 ### Configuration Details
