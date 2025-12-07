@@ -17,23 +17,23 @@ class WeatherController {
    */
   async getWeatherData(req, res) {
     const requestStartTime = Date.now();
-    
+
     try {
       // Validate request parameters
       const validation = ValidationService.validateWeatherRequest(req.query);
-      
+
       if (!validation.isValid) {
         throw ErrorHandler.createValidationErrorWithDetails(validation.errors);
       }
 
       const { latitude, longitude, date, parameters, historicalYears, format } = validation.data;
       const parameterList = parameters.split(',');
-      
+
       console.log(`Processing weather request for [${latitude}, ${longitude}] on ${date}`);
 
       let weatherData;
       const requestDate = parseISO(date);
-      
+
       // NASA POWER API has a configurable data delay (default: 4 days)
       // Calculate cutoff date: today minus delay days
       const today = new Date();
@@ -41,7 +41,7 @@ class WeatherController {
       const nasaDataCutoff = new Date(today);
       const delayDays = require('../config/config').weather.nasaDataDelayDays;
       nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
-      
+
       if (requestDate < nasaDataCutoff) {
         // Date is older than 4 days - fetch actual NASA historical data
         console.log('Historical date detected (older than 4 days), fetching actual data...');
@@ -167,7 +167,7 @@ class WeatherController {
     try {
       // Validate location parameters
       const validation = ValidationService.validateLocation(req.query);
-      
+
       if (!validation.isValid) {
         throw ErrorHandler.createValidationErrorWithDetails(validation.errors);
       }
@@ -203,11 +203,11 @@ class WeatherController {
    */
   async getBulkWeatherData(req, res) {
     const requestStartTime = Date.now();
-    
+
     try {
       // Validate bulk request
       const validation = ValidationService.validateBulkRequest(req.body);
-      
+
       if (!validation.isValid) {
         throw ErrorHandler.createValidationErrorWithDetails(validation.errors);
       }
@@ -220,17 +220,17 @@ class WeatherController {
         try {
           const { latitude, longitude, date, parameters } = request;
           const parameterList = parameters ? parameters.split(',') : require('../config/config').weather.defaultParameters;
-          
+
           const requestDate = parseISO(date);
           let weatherData;
-          
+
           // NASA POWER API has a configurable data delay (default: 4 days)
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const nasaDataCutoff = new Date(today);
           const delayDays = require('../config/config').weather.nasaDataDelayDays;
           nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
-          
+
           if (requestDate < nasaDataCutoff) {
             // Date is older than 4 days - fetch actual NASA historical data
             weatherData = await this.fetchHistoricalData(
@@ -242,7 +242,7 @@ class WeatherController {
               latitude, longitude, date, parameterList, historicalYears
             );
           }
-          
+
           return {
             index,
             success: true,
@@ -295,12 +295,12 @@ class WeatherController {
   async healthCheck(req, res) {
     try {
       const startTime = Date.now();
-      
+
       // Test NASA API connectivity
       const nasaStatus = await this.nasaApiService.testConnectivity();
-      
+
       const responseTime = Date.now() - startTime;
-      
+
       res.json({
         success: true,
         status: 'healthy',
