@@ -1,23 +1,24 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const compression = require("compression");
 // const rateLimit = require('express-rate-limit'); // Rate limiting removed as per requirements
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
-const path = require('path');
+const swaggerUi = require("swagger-ui-express");
+const YAML = require("yamljs");
+const path = require("path");
 
-const config = require('./config/config');
-const weatherRoutes = require('./routes/weatherRoutes');
-const healthRoutes = require('./routes/healthRoutes');
-const geomagneticRoutes = require('./routes/geomagneticRoutes');
-const asteroidRoutes = require('./routes/asteroidRoutes');
-const eonetRoutes = require('./routes/eonetRoutes');
-const openaqRoutes = require('./routes/openaqRoutes');
-const epicRoutes = require('./routes/epicRoutes');
-const apodRoutes = require('./routes/apodRoutes');
-const ErrorHandler = require('./middleware/errorHandler');
+const config = require("./config/config");
+const weatherRoutes = require("./routes/weatherRoutes");
+const healthRoutes = require("./routes/healthRoutes");
+const geomagneticRoutes = require("./routes/geomagneticRoutes");
+const asteroidRoutes = require("./routes/asteroidRoutes");
+const eonetRoutes = require("./routes/eonetRoutes");
+const openaqRoutes = require("./routes/openaqRoutes");
+const epicRoutes = require("./routes/epicRoutes");
+const apodRoutes = require("./routes/apodRoutes");
+const authRoutes = require("./routes/authRoutes");
+const ErrorHandler = require("./middleware/errorHandler");
 
 class App {
   constructor() {
@@ -30,44 +31,54 @@ class App {
 
   setupMiddleware() {
     // Security middleware
-    this.app.use(helmet({
-      contentSecurityPolicy: false // Allow Swagger UI to work
-    }));
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false, // Allow Swagger UI to work
+      })
+    );
 
     // Compression middleware
     this.app.use(compression());
 
     // CORS middleware
-    this.app.use(cors({
-      origin: config.cors.origin,
-      methods: config.cors.methods,
-      allowedHeaders: config.cors.allowedHeaders,
-      credentials: false
-    }));
+    this.app.use(
+      cors({
+        origin: config.cors.origin,
+        methods: config.cors.methods,
+        allowedHeaders: config.cors.allowedHeaders,
+        credentials: false,
+      })
+    );
 
     // Rate limiting removed as per requirements
     // Previously had rate limiting here, but removed for this implementation
 
     // Body parsing middleware
-    this.app.use(express.json({ 
-      limit: '10mb',
-      type: 'application/json'
-    }));
-    
-    this.app.use(express.urlencoded({ 
-      extended: true, 
-      limit: '10mb' 
-    }));
+    this.app.use(
+      express.json({
+        limit: "10mb",
+        type: "application/json",
+      })
+    );
+
+    this.app.use(
+      express.urlencoded({
+        extended: true,
+        limit: "10mb",
+      })
+    );
 
     // Request logging middleware (development only)
-    if (config.server.env === 'development') {
+    if (config.server.env === "development") {
       this.app.use((req, res, next) => {
-        console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+        console.log(
+          `${new Date().toISOString()} - ${req.method} ${req.originalUrl}`
+        );
         if (Object.keys(req.query).length > 0) {
-          console.log('Query params:', req.query);
+          console.log("Query params:", req.query);
         }
-        if (req.method === 'POST' && req.body) {
-          console.log('Request body:', JSON.stringify(req.body, null, 2));
+        if (req.method === "POST" && req.body) {
+          console.log("Request body:", JSON.stringify(req.body, null, 2));
         }
         next();
       });
@@ -76,8 +87,8 @@ class App {
     // Request timeout middleware
     this.app.use((req, res, next) => {
       res.setTimeout(config.server.timeout, () => {
-        const error = new Error('Request timeout');
-        error.code = 'REQUEST_TIMEOUT';
+        const error = new Error("Request timeout");
+        error.code = "REQUEST_TIMEOUT";
         error.statusCode = 408;
         next(error);
       });
@@ -87,98 +98,100 @@ class App {
 
   setupRoutes() {
     // API Routes
-    this.app.use('/api/weather', weatherRoutes);
-    this.app.use('/api/health', healthRoutes);
-    this.app.use('/api/geomagnetic', geomagneticRoutes);
-    this.app.use('/api/asteroids', asteroidRoutes);
-    this.app.use('/api/eonet', eonetRoutes);
-    this.app.use('/api/openaq', openaqRoutes);
-    this.app.use('/api/epic', epicRoutes);
-    this.app.use('/api/apod', apodRoutes);
+    this.app.use("/api/auth", authRoutes);
+    this.app.use("/api/weather", weatherRoutes);
+    this.app.use("/api/health", healthRoutes);
+    this.app.use("/api/geomagnetic", geomagneticRoutes);
+    this.app.use("/api/asteroids", asteroidRoutes);
+    this.app.use("/api/eonet", eonetRoutes);
+    this.app.use("/api/openaq", openaqRoutes);
+    this.app.use("/api/epic", epicRoutes);
+    this.app.use("/api/apod", apodRoutes);
 
     // Root endpoint
-    this.app.get('/', (req, res) => {
+    this.app.get("/", (req, res) => {
       res.json({
         success: true,
-        message: 'NASA Weather Data API',
-        version: '1.0.0',
-        documentation: '/api-docs',
+        message: "NASA Weather Data API",
+        version: "1.0.0",
+        documentation: "/api-docs",
         endpoints: {
-          weather: '/api/weather/data',
-          parameters: '/api/weather/parameters',
-          historicalRange: '/api/weather/historical-range',
-          bulk: '/api/weather/bulk',
-          geomagneticStorms: '/api/geomagnetic/storms',
-          forecast3Day: '/api/geomagnetic/forecast/3-day',
-          forecast27Day: '/api/geomagnetic/forecast/27-day',
-          forecastCombined: '/api/geomagnetic/forecast/combined',
-          asteroidFeed: '/api/asteroids/feed',
-          eonetCategories: '/api/eonet/categories',
-          eonetEvents: '/api/eonet/events',
-          eonetEventsGeoJSON: '/api/eonet/events/geojson',
-          eonetEventsByCategory: '/api/eonet/events/category/:categoryId',
-          eonetEventsRegional: '/api/eonet/events/regional',
-          eonetEventsAnalysis: '/api/eonet/events/analysis',
-          openaqStations: '/api/openaq/stations',
-          openaqMeasurements: '/api/openaq/measurements/:sensorId',
-          openaqAirQuality: '/api/openaq/airquality',
-          epicNaturalImages: '/api/epic/natural/images',
-          epicNaturalImagesByDate: '/api/epic/natural/images/date/:date',
-          epicNaturalDates: '/api/epic/natural/dates',
-          epicEnhancedImages: '/api/epic/enhanced/images',
-          epicEnhancedImagesByDate: '/api/epic/enhanced/images/date/:date',
-          epicEnhancedDates: '/api/epic/enhanced/dates',
-          apodToday: '/api/apod',
-          apodByDate: '/api/apod/date/:date',
-          apodRange: '/api/apod/range',
-          apodRandom: '/api/apod/random',
-          health: '/api/health'
+          weather: "/api/weather/data",
+          parameters: "/api/weather/parameters",
+          historicalRange: "/api/weather/historical-range",
+          bulk: "/api/weather/bulk",
+          geomagneticStorms: "/api/geomagnetic/storms",
+          forecast3Day: "/api/geomagnetic/forecast/3-day",
+          forecast27Day: "/api/geomagnetic/forecast/27-day",
+          forecastCombined: "/api/geomagnetic/forecast/combined",
+          asteroidFeed: "/api/asteroids/feed",
+          eonetCategories: "/api/eonet/categories",
+          eonetEvents: "/api/eonet/events",
+          eonetEventsGeoJSON: "/api/eonet/events/geojson",
+          eonetEventsByCategory: "/api/eonet/events/category/:categoryId",
+          eonetEventsRegional: "/api/eonet/events/regional",
+          eonetEventsAnalysis: "/api/eonet/events/analysis",
+          openaqStations: "/api/openaq/stations",
+          openaqMeasurements: "/api/openaq/measurements/:sensorId",
+          openaqAirQuality: "/api/openaq/airquality",
+          epicNaturalImages: "/api/epic/natural/images",
+          epicNaturalImagesByDate: "/api/epic/natural/images/date/:date",
+          epicNaturalDates: "/api/epic/natural/dates",
+          epicEnhancedImages: "/api/epic/enhanced/images",
+          epicEnhancedImagesByDate: "/api/epic/enhanced/images/date/:date",
+          epicEnhancedDates: "/api/epic/enhanced/dates",
+          apodToday: "/api/apod",
+          apodByDate: "/api/apod/date/:date",
+          apodRange: "/api/apod/range",
+          apodRandom: "/api/apod/random",
+          health: "/api/health",
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     });
 
     // API info endpoint
-    this.app.get('/api', (req, res) => {
+    this.app.get("/api", (req, res) => {
       res.json({
         success: true,
-        api: 'NASA Weather Data API',
-        version: '1.0.0',
-        description: 'Weather data and prediction service using NASA POWER API and geomagnetic storm data',
-        documentation: '/api-docs',
-        contact: 'NASA Space Apps Challenge Team',
+        api: "NASA Weather Data API",
+        version: "1.0.0",
+        description:
+          "Weather data and prediction service using NASA POWER API and geomagnetic storm data",
+        documentation: "/api-docs",
+        contact: "NASA Space Apps Challenge Team",
         endpoints: [
-          'GET /api/weather/data - Get weather data for location and date',
-          'GET /api/weather/parameters - Get available parameters',
-          'GET /api/weather/historical-range - Get data range for location',
-          'POST /api/weather/bulk - Bulk weather data requests',
-          'GET /api/geomagnetic/storms - Get geomagnetic storm data (NASA DONKI)',
-          'GET /api/geomagnetic/forecast/3-day - Get 3-day geomagnetic forecast (NOAA SWPC)',
-          'GET /api/geomagnetic/forecast/27-day - Get 27-day geomagnetic outlook (NOAA SWPC)',
-          'GET /api/geomagnetic/forecast/combined - Get combined forecast data',
-          'GET /api/asteroids/feed - Get asteroid data by closest approach date',
-          'GET /api/eonet/categories - Get all natural event categories',
-          'GET /api/eonet/events - Get natural disaster events with filters',
-          'GET /api/eonet/events/geojson - Get events in GeoJSON format',
-          'GET /api/eonet/events/category/:categoryId - Get category-specific events',
-          'GET /api/eonet/events/regional - Get regional events with proximity analysis',
-          'GET /api/eonet/events/analysis - Get events with trend analysis',
-          'GET /api/openaq/stations - Find air quality monitoring stations by coordinates',
-          'GET /api/openaq/measurements/:sensorId - Get latest measurements for a sensor',
-          'GET /api/openaq/airquality - Get comprehensive air quality assessment',
-          'GET /api/epic/natural/images - Get latest natural color Earth images',
-          'GET /api/epic/natural/images/date/:date - Get natural color images by date',
-          'GET /api/epic/natural/dates - Get all available dates for natural color imagery',
-          'GET /api/epic/enhanced/images - Get latest enhanced color Earth images',
-          'GET /api/epic/enhanced/images/date/:date - Get enhanced color images by date',
-          'GET /api/epic/enhanced/dates - Get all available dates for enhanced color imagery',
-          'GET /api/apod - Get today\'s Astronomy Picture of the Day',
-          'GET /api/apod/date/:date - Get APOD for specific date',
-          'GET /api/apod/range - Get APOD for date range',
-          'GET /api/apod/random - Get random APOD images',
-          'GET /api/health - Health check'
+          "GET /api/weather/data - Get weather data for location and date",
+          "GET /api/weather/parameters - Get available parameters",
+          "GET /api/weather/historical-range - Get data range for location",
+          "POST /api/weather/bulk - Bulk weather data requests",
+          "GET /api/geomagnetic/storms - Get geomagnetic storm data (NASA DONKI)",
+          "GET /api/geomagnetic/forecast/3-day - Get 3-day geomagnetic forecast (NOAA SWPC)",
+          "GET /api/geomagnetic/forecast/27-day - Get 27-day geomagnetic outlook (NOAA SWPC)",
+          "GET /api/geomagnetic/forecast/combined - Get combined forecast data",
+          "GET /api/asteroids/feed - Get asteroid data by closest approach date",
+          "GET /api/eonet/categories - Get all natural event categories",
+          "GET /api/eonet/events - Get natural disaster events with filters",
+          "GET /api/eonet/events/geojson - Get events in GeoJSON format",
+          "GET /api/eonet/events/category/:categoryId - Get category-specific events",
+          "GET /api/eonet/events/regional - Get regional events with proximity analysis",
+          "GET /api/eonet/events/analysis - Get events with trend analysis",
+          "GET /api/openaq/stations - Find air quality monitoring stations by coordinates",
+          "GET /api/openaq/measurements/:sensorId - Get latest measurements for a sensor",
+          "GET /api/openaq/airquality - Get comprehensive air quality assessment",
+          "GET /api/epic/natural/images - Get latest natural color Earth images",
+          "GET /api/epic/natural/images/date/:date - Get natural color images by date",
+          "GET /api/epic/natural/dates - Get all available dates for natural color imagery",
+          "GET /api/epic/enhanced/images - Get latest enhanced color Earth images",
+          "GET /api/epic/enhanced/images/date/:date - Get enhanced color images by date",
+          "GET /api/epic/enhanced/dates - Get all available dates for enhanced color imagery",
+          "GET /api/apod - Get today's Astronomy Picture of the Day",
+          "GET /api/apod/date/:date - Get APOD for specific date",
+          "GET /api/apod/range - Get APOD for date range",
+          "GET /api/apod/random - Get random APOD images",
+          "GET /api/health - Health check",
         ],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     });
   }
@@ -186,22 +199,24 @@ class App {
   setupSwagger() {
     try {
       // Load OpenAPI specification
-      const swaggerDocument = YAML.load(path.join(__dirname, '../docs/api-spec.yaml'));
-      
+      const swaggerDocument = YAML.load(
+        path.join(__dirname, "../docs/api-spec.yaml")
+      );
+
       // Update server URLs based on environment
-      if (config.server.env === 'production') {
+      if (config.server.env === "production") {
         swaggerDocument.servers = [
           {
-            url: 'https://nasa-weather-api.example.com/api',
-            description: 'Production server'
-          }
+            url: "https://nasa-weather-api.example.com/api",
+            description: "Production server",
+          },
         ];
       } else {
         swaggerDocument.servers = [
           {
             url: `http://localhost:${config.server.port}/api`,
-            description: 'Development server'
-          }
+            description: "Development server",
+          },
         ];
       }
 
@@ -209,30 +224,37 @@ class App {
       const options = {
         explorer: true,
         swaggerOptions: {
-          docExpansion: 'tag',
+          docExpansion: "tag",
           filter: true,
-          showRequestDuration: true
+          showRequestDuration: true,
         },
-        customSiteTitle: 'NASA Weather API Documentation',
+        customSiteTitle: "NASA Weather API Documentation",
         customCss: `
           .topbar-wrapper .link { 
             content: url('https://power.larc.nasa.gov/docs/logo.png'); 
             height: 40px; 
           }
           .swagger-ui .topbar { background-color: #1b365d; }
-        `
+        `,
       };
 
-      this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
-      
+      this.app.use(
+        "/api-docs",
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerDocument, options)
+      );
+
       // API specification endpoint
-      this.app.get('/api-spec', (req, res) => {
+      this.app.get("/api-spec", (req, res) => {
         res.json(swaggerDocument);
       });
 
-      console.log('✓ Swagger documentation available at /api-docs');
+      console.log("✓ Swagger documentation available at /api-docs");
     } catch (error) {
-      console.warn('⚠ Warning: Could not load Swagger documentation:', error.message);
+      console.warn(
+        "⚠ Warning: Could not load Swagger documentation:",
+        error.message
+      );
     }
   }
 
@@ -244,42 +266,44 @@ class App {
     this.app.use(ErrorHandler.handleError);
 
     // Graceful shutdown handlers
-    process.on('SIGTERM', () => {
-      console.log('SIGTERM received, shutting down gracefully...');
+    process.on("SIGTERM", () => {
+      console.log("SIGTERM received, shutting down gracefully...");
       process.exit(0);
     });
 
-    process.on('SIGINT', () => {
-      console.log('SIGINT received, shutting down gracefully...');
+    process.on("SIGINT", () => {
+      console.log("SIGINT received, shutting down gracefully...");
       process.exit(0);
     });
 
     // Unhandled promise rejection handler
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Promise Rejection:', reason);
-      console.error('Promise:', promise);
+    process.on("unhandledRejection", (reason, promise) => {
+      console.error("Unhandled Promise Rejection:", reason);
+      console.error("Promise:", promise);
     });
 
     // Uncaught exception handler
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
+    process.on("uncaughtException", (error) => {
+      console.error("Uncaught Exception:", error);
       process.exit(1);
     });
   }
 
   start() {
     const port = config.server.port;
-    
+
     this.app.listen(port, () => {
-      console.log('🚀 NASA Weather Data API Server Started');
-      console.log('='.repeat(50));
+      console.log("🚀 NASA Weather Data API Server Started");
+      console.log("=".repeat(50));
       console.log(`📡 Server running on port ${port}`);
       console.log(`🌍 Environment: ${config.server.env}`);
       console.log(`📚 API Documentation: http://localhost:${port}/api-docs`);
       console.log(`🏥 Health Check: http://localhost:${port}/api/health`);
-      console.log(`🌤️  Weather Data: http://localhost:${port}/api/weather/data`);
-      console.log('='.repeat(50));
-      
+      console.log(
+        `🌤️  Weather Data: http://localhost:${port}/api/weather/data`
+      );
+      console.log("=".repeat(50));
+
       // Test NASA API connection on startup
       this.testNasaConnection();
     });
@@ -288,94 +312,118 @@ class App {
   async testNasaConnection() {
     try {
       // Test NASA POWER API
-      const NasaPowerApiService = require('./services/nasaApiService');
+      const NasaPowerApiService = require("./services/nasaApiService");
       const nasaService = new NasaPowerApiService();
       const powerStatus = await nasaService.testConnectivity();
-      
-      if (powerStatus.status === 'connected') {
-        console.log('✓ NASA POWER API connection test successful');
+
+      if (powerStatus.status === "connected") {
+        console.log("✓ NASA POWER API connection test successful");
       } else {
-        console.warn('⚠ NASA POWER API connection test failed:', powerStatus.message);
+        console.warn(
+          "⚠ NASA POWER API connection test failed:",
+          powerStatus.message
+        );
       }
 
       // Test NASA DONKI API
-      const NasaDonkiService = require('./services/nasaDonkiService');
+      const NasaDonkiService = require("./services/nasaDonkiService");
       const donkiService = new NasaDonkiService();
       const donkiStatus = await donkiService.testConnectivity();
-      
-      if (donkiStatus.status === 'connected') {
-        console.log('✓ NASA DONKI API connection test successful');
+
+      if (donkiStatus.status === "connected") {
+        console.log("✓ NASA DONKI API connection test successful");
       } else {
-        console.warn('⚠ NASA DONKI API connection test failed:', donkiStatus.message);
+        console.warn(
+          "⚠ NASA DONKI API connection test failed:",
+          donkiStatus.message
+        );
       }
 
       // Test NOAA SWPC Service
-      const NoaaSwpcService = require('./services/noaaSwpcService');
+      const NoaaSwpcService = require("./services/noaaSwpcService");
       const swpcService = new NoaaSwpcService();
       const swpcStatus = await swpcService.testConnectivity();
-      
-      if (swpcStatus.status === 'connected') {
-        console.log('✓ NOAA SWPC service connection test successful');
+
+      if (swpcStatus.status === "connected") {
+        console.log("✓ NOAA SWPC service connection test successful");
       } else {
-        console.warn('⚠ NOAA SWPC service connection test failed:', swpcStatus.message);
+        console.warn(
+          "⚠ NOAA SWPC service connection test failed:",
+          swpcStatus.message
+        );
       }
 
       // Test NASA NeoWs API
-      const NasaNeowsService = require('./services/nasaNeowsService');
+      const NasaNeowsService = require("./services/nasaNeowsService");
       const neowsService = new NasaNeowsService();
       const neowsStatus = await neowsService.testConnectivity();
-      
-      if (neowsStatus.status === 'connected') {
-        console.log('✓ NASA NeoWs API connection test successful');
+
+      if (neowsStatus.status === "connected") {
+        console.log("✓ NASA NeoWs API connection test successful");
       } else {
-        console.warn('⚠ NASA NeoWs API connection test failed:', neowsStatus.message);
+        console.warn(
+          "⚠ NASA NeoWs API connection test failed:",
+          neowsStatus.message
+        );
       }
 
       // Test NASA EONET API
-      const NasaEonetService = require('./services/nasaEonetService');
+      const NasaEonetService = require("./services/nasaEonetService");
       const eonetService = new NasaEonetService();
       const eonetStatus = await eonetService.testConnectivity();
-      
-      if (eonetStatus.status === 'connected') {
-        console.log('✓ NASA EONET API connection test successful');
+
+      if (eonetStatus.status === "connected") {
+        console.log("✓ NASA EONET API connection test successful");
       } else {
-        console.warn('⚠ NASA EONET API connection test failed:', eonetStatus.message);
+        console.warn(
+          "⚠ NASA EONET API connection test failed:",
+          eonetStatus.message
+        );
       }
 
       // Test OpenAQ API
-      const OpenaqService = require('./services/openaqService');
+      const OpenaqService = require("./services/openaqService");
       const openaqService = new OpenaqService();
       const openaqStatus = await openaqService.testConnectivity();
-      
-      if (openaqStatus.status === 'connected') {
-        console.log('✓ OpenAQ API connection test successful');
+
+      if (openaqStatus.status === "connected") {
+        console.log("✓ OpenAQ API connection test successful");
       } else {
-        console.warn('⚠ OpenAQ API connection test failed:', openaqStatus.message);
+        console.warn(
+          "⚠ OpenAQ API connection test failed:",
+          openaqStatus.message
+        );
       }
 
       // Test NASA EPIC API
-      const NasaEpicService = require('./services/nasaEpicService');
+      const NasaEpicService = require("./services/nasaEpicService");
       const epicService = new NasaEpicService();
       const epicStatus = await epicService.testConnectivity();
-      
-      if (epicStatus.status === 'connected') {
-        console.log('✓ NASA EPIC API connection test successful');
+
+      if (epicStatus.status === "connected") {
+        console.log("✓ NASA EPIC API connection test successful");
       } else {
-        console.warn('⚠ NASA EPIC API connection test failed:', epicStatus.message);
+        console.warn(
+          "⚠ NASA EPIC API connection test failed:",
+          epicStatus.message
+        );
       }
 
       // Test NASA APOD API
-      const NasaApodService = require('./services/nasaApodService');
+      const NasaApodService = require("./services/nasaApodService");
       const apodService = new NasaApodService();
       const apodStatus = await apodService.testConnectivity();
-      
-      if (apodStatus.status === 'connected') {
-        console.log('✓ NASA APOD API connection test successful');
+
+      if (apodStatus.status === "connected") {
+        console.log("✓ NASA APOD API connection test successful");
       } else {
-        console.warn('⚠ NASA APOD API connection test failed:', apodStatus.message);
+        console.warn(
+          "⚠ NASA APOD API connection test failed:",
+          apodStatus.message
+        );
       }
     } catch (error) {
-      console.warn('⚠ Could not test API connections:', error.message);
+      console.warn("⚠ Could not test API connections:", error.message);
     }
   }
 
