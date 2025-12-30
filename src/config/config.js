@@ -114,10 +114,10 @@ const config = {
 
   // PostgreSQL Database Configuration
   database: {
-    host: process.env.DB_HOST || "localhost",
-    port: parseInt(process.env.DB_PORT) || 5432,
-    name: process.env.DB_NAME || "nasa_weather_db",
-    user: process.env.DB_USER || "efeaksu",
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT),
+    name: process.env.DB_NAME,
+    user: process.env.DB_USER,
     password: process.env.DB_PASSWORD || "",
     poolMax: parseInt(process.env.DB_POOL_MAX) || 10,
     idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,

@@ -1,8 +1,8 @@
-const { parseISO, isFuture } = require('date-fns');
-const ValidationService = require('../services/validationService');
-const NasaPowerApiService = require('../services/nasaApiService');
-const WeatherDataService = require('../services/weatherDataService');
-const ErrorHandler = require('../middleware/errorHandler');
+const { parseISO, isFuture } = require("date-fns");
+const ValidationService = require("../services/validationService");
+const NasaPowerApiService = require("../services/nasaApiService");
+const WeatherDataService = require("../services/weatherDataService");
+const ErrorHandler = require("../middleware/errorHandler");
 
 class WeatherController {
   constructor() {
@@ -26,10 +26,13 @@ class WeatherController {
         throw ErrorHandler.createValidationErrorWithDetails(validation.errors);
       }
 
-      const { latitude, longitude, date, parameters, historicalYears, format } = validation.data;
-      const parameterList = parameters.split(',');
+      const { latitude, longitude, date, parameters, historicalYears, format } =
+        validation.data;
+      const parameterList = parameters.split(",");
 
-      console.log(`Processing weather request for [${latitude}, ${longitude}] on ${date}`);
+      console.log(
+        `Processing weather request for [${latitude}, ${longitude}] on ${date}`
+      );
 
       let weatherData;
       const requestDate = parseISO(date);
@@ -39,30 +42,44 @@ class WeatherController {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const nasaDataCutoff = new Date(today);
-      const delayDays = require('../config/config').weather.nasaDataDelayDays;
+      const delayDays = require("../config/config").weather.nasaDataDelayDays;
       nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
 
       if (requestDate < nasaDataCutoff) {
         // Date is older than 4 days - fetch actual NASA historical data
-        console.log('Historical date detected (older than 4 days), fetching actual data...');
+        console.log(
+          "Historical date detected (older than 4 days), fetching actual data..."
+        );
         weatherData = await this.fetchHistoricalData(
-          latitude, longitude, date, parameterList
+          latitude,
+          longitude,
+          date,
+          parameterList
         );
       } else {
         // Date is within last 4 days, today, or future - generate prediction
-        console.log('Date within NASA data delay window or future, generating prediction...');
+        console.log(
+          "Date within NASA data delay window or future, generating prediction..."
+        );
         weatherData = await this.generatePrediction(
-          latitude, longitude, date, parameterList, historicalYears
+          latitude,
+          longitude,
+          date,
+          parameterList,
+          historicalYears
         );
       }
 
       const processingTime = Date.now() - requestStartTime;
 
       // Format response based on requested format
-      if (format === 'csv') {
+      if (format === "csv") {
         const csvData = this.weatherDataService.convertToCSV(weatherData);
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="weather_${date}_${latitude}_${longitude}.csv"`);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="weather_${date}_${latitude}_${longitude}.csv"`
+        );
         return res.send(csvData);
       }
 
@@ -71,63 +88,87 @@ class WeatherController {
         success: true,
         data: weatherData,
         requestTimestamp: new Date().toISOString(),
-        processingTime
+        processingTime,
       });
-
     } catch (error) {
-      console.error('Weather data request failed:', error.message);
+      console.error("Weather data request failed:", error.message);
       throw error;
     }
   }
 
   /**
    * Fetch historical weather data
-   * @param {number} latitude 
-   * @param {number} longitude 
-   * @param {string} date 
-   * @param {Array<string>} parameters 
+   * @param {number} latitude
+   * @param {number} longitude
+   * @param {string} date
+   * @param {Array<string>} parameters
    * @returns {Object} Processed weather data
    */
   async fetchHistoricalData(latitude, longitude, date, parameters) {
     try {
       const nasaResponse = await this.nasaApiService.fetchWeatherData(
-        latitude, longitude, date, date, parameters
+        latitude,
+        longitude,
+        date,
+        date,
+        parameters
       );
 
-      return this.weatherDataService.processWeatherData(nasaResponse, date, 'historical');
+      return this.weatherDataService.processWeatherData(
+        nasaResponse,
+        date,
+        "historical"
+      );
     } catch (error) {
-      console.error('Failed to fetch historical data:', error.message);
+      console.error("Failed to fetch historical data:", error.message);
       throw error;
     }
   }
 
   /**
    * Generate weather prediction for future date
-   * @param {number} latitude 
-   * @param {number} longitude 
-   * @param {string} targetDate 
-   * @param {Array<string>} parameters 
-   * @param {number} historicalYears 
+   * @param {number} latitude
+   * @param {number} longitude
+   * @param {string} targetDate
+   * @param {Array<string>} parameters
+   * @param {number} historicalYears
    * @returns {Object} Processed prediction data
    */
-  async generatePrediction(latitude, longitude, targetDate, parameters, historicalYears) {
+  async generatePrediction(
+    latitude,
+    longitude,
+    targetDate,
+    parameters,
+    historicalYears
+  ) {
     try {
       // Fetch historical data for the same date across multiple years
-      const historicalDataArray = await this.nasaApiService.fetchHistoricalDataForPrediction(
-        latitude, longitude, targetDate, historicalYears, parameters
-      );
+      const historicalDataArray =
+        await this.nasaApiService.fetchHistoricalDataForPrediction(
+          latitude,
+          longitude,
+          targetDate,
+          historicalYears,
+          parameters
+        );
 
       // Calculate prediction using arithmetic mean
-      const { prediction, metadata } = this.weatherDataService.calculatePrediction(
-        historicalDataArray, targetDate, parameters
-      );
+      const { prediction, metadata } =
+        this.weatherDataService.calculatePrediction(
+          historicalDataArray,
+          targetDate,
+          parameters
+        );
 
       // Process the prediction data
       return this.weatherDataService.processWeatherData(
-        prediction, targetDate, 'prediction', metadata
+        prediction,
+        targetDate,
+        "prediction",
+        metadata
       );
     } catch (error) {
-      console.error('Failed to generate prediction:', error.message);
+      console.error("Failed to generate prediction:", error.message);
       throw error;
     }
   }
@@ -147,13 +188,15 @@ class WeatherController {
         data: {
           availableParameters: validParameters,
           parameterDetails: parameters,
-          defaultParameters: require('../config/config').weather.defaultParameters,
-          maxParametersPerRequest: require('../config/config').weather.maxParametersPerRequest
+          defaultParameters:
+            require("../config/config").weather.defaultParameters,
+          maxParametersPerRequest:
+            require("../config/config").weather.maxParametersPerRequest,
         },
-        requestTimestamp: new Date().toISOString()
+        requestTimestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get weather parameters:', error.message);
+      console.error("Failed to get weather parameters:", error.message);
       throw error;
     }
   }
@@ -173,7 +216,7 @@ class WeatherController {
       }
 
       const { latitude, longitude } = validation.data;
-      const config = require('../config/config');
+      const config = require("../config/config");
 
       res.json({
         success: true,
@@ -181,17 +224,23 @@ class WeatherController {
           location: { latitude, longitude },
           historicalRange: {
             startDate: config.validation.minDate,
-            endDate: new Date().toISOString().split('T')[0]
+            endDate: new Date().toISOString().split("T")[0],
           },
           predictionRange: {
-            startDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-            endDate: new Date(Date.now() + (config.validation.maxFutureYears * 365 * 86400000)).toISOString().split('T')[0]
-          }
+            startDate: new Date(Date.now() + 86400000)
+              .toISOString()
+              .split("T")[0], // Tomorrow
+            endDate: new Date(
+              Date.now() + config.validation.maxFutureYears * 365 * 86400000
+            )
+              .toISOString()
+              .split("T")[0],
+          },
         },
-        requestTimestamp: new Date().toISOString()
+        requestTimestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get historical range:', error.message);
+      console.error("Failed to get historical range:", error.message);
       throw error;
     }
   }
@@ -219,7 +268,9 @@ class WeatherController {
       const promises = requests.map(async (request, index) => {
         try {
           const { latitude, longitude, date, parameters } = request;
-          const parameterList = parameters ? parameters.split(',') : require('../config/config').weather.defaultParameters;
+          const parameterList = parameters
+            ? parameters.split(",")
+            : require("../config/config").weather.defaultParameters;
 
           const requestDate = parseISO(date);
           let weatherData;
@@ -228,25 +279,33 @@ class WeatherController {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const nasaDataCutoff = new Date(today);
-          const delayDays = require('../config/config').weather.nasaDataDelayDays;
+          const delayDays =
+            require("../config/config").weather.nasaDataDelayDays;
           nasaDataCutoff.setDate(nasaDataCutoff.getDate() - delayDays);
 
           if (requestDate < nasaDataCutoff) {
             // Date is older than 4 days - fetch actual NASA historical data
             weatherData = await this.fetchHistoricalData(
-              latitude, longitude, date, parameterList
+              latitude,
+              longitude,
+              date,
+              parameterList
             );
           } else {
             // Date is within last 4 days, today, or future - generate prediction
             weatherData = await this.generatePrediction(
-              latitude, longitude, date, parameterList, historicalYears
+              latitude,
+              longitude,
+              date,
+              parameterList,
+              historicalYears
             );
           }
 
           return {
             index,
             success: true,
-            data: weatherData
+            data: weatherData,
           };
         } catch (error) {
           console.error(`Bulk request ${index} failed:`, error.message);
@@ -254,9 +313,9 @@ class WeatherController {
             index,
             success: false,
             error: {
-              code: error.code || 'PROCESSING_ERROR',
-              message: error.message
-            }
+              code: error.code || "PROCESSING_ERROR",
+              message: error.message,
+            },
           };
         }
       });
@@ -265,8 +324,8 @@ class WeatherController {
       const processingTime = Date.now() - requestStartTime;
 
       // Separate successful and failed results
-      const successful = results.filter(r => r.success);
-      const failed = results.filter(r => !r.success);
+      const successful = results.filter((r) => r.success);
+      const failed = results.filter((r) => !r.success);
 
       res.json({
         success: true,
@@ -274,15 +333,14 @@ class WeatherController {
           totalRequests: requests.length,
           successfulRequests: successful.length,
           failedRequests: failed.length,
-          results: successful.map(r => r.data),
-          errors: failed.map(r => ({ index: r.index, error: r.error }))
+          results: successful.map((r) => r.data),
+          errors: failed.map((r) => ({ index: r.index, error: r.error })),
         },
         requestTimestamp: new Date().toISOString(),
-        processingTime
+        processingTime,
       });
-
     } catch (error) {
-      console.error('Bulk weather data request failed:', error.message);
+      console.error("Bulk weather data request failed:", error.message);
       throw error;
     }
   }
@@ -303,33 +361,34 @@ class WeatherController {
 
       res.json({
         success: true,
-        status: 'healthy',
+        status: "healthy",
         timestamp: new Date().toISOString(),
-        version: '1.0.0',
+        version: "1.0.0",
         services: {
           api: {
-            status: 'operational',
-            responseTime: responseTime
+            status: "operational",
+            responseTime: responseTime,
           },
           nasaPowerApi: {
-            status: nasaStatus.status === 'connected' ? 'operational' : 'degraded',
+            status:
+              nasaStatus.status === "connected" ? "operational" : "degraded",
             message: nasaStatus.message,
-            error: nasaStatus.error || null
-          }
+            error: nasaStatus.error || null,
+          },
         },
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV
+        environment: process.env.NODE_ENV,
       });
     } catch (error) {
-      console.error('Health check failed:', error.message);
+      console.error("Health check failed:", error.message);
       res.status(503).json({
         success: false,
-        status: 'unhealthy',
+        status: "unhealthy",
         timestamp: new Date().toISOString(),
         error: {
-          code: 'HEALTH_CHECK_FAILED',
-          message: error.message
-        }
+          code: "HEALTH_CHECK_FAILED",
+          message: error.message,
+        },
       });
     }
   }
