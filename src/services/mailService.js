@@ -1,23 +1,22 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
-// SMTP bağlantı ayarları
-// Gerçek bilgiler daha sonra eklenecek
+dotenv.config(); //.nev dosyası okumak ıcın
 const transporter = nodemailer.createTransport({
-  host: "SMTP_HOST_HERE",   // SMTP sunucu adresi
-  port: 587,               
-  secure: false,           
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: false, 
   auth: {
-    user: "SMTP_USER_HERE", // SMTP kullanıcı adı
-    pass: "SMTP_PASS_HERE", // SMTP şifre / key
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
-// Mail gönderme fonksiyonu
 export async function sendMail(to, subject, text) {
   return transporter.sendMail({
-    from: "no-reply@domain.com", // Gönderen adres
-    to,                          // Alıcı
-    subject,                     // Mail konusu
-    text,                        // Mail içeriği
+    from: process.env.SMTP_USER,
+    to,
+    subject,
+    text,
   });
 }
