@@ -1,4 +1,4 @@
-# NASA Weather Data API
+# Aetherlink Project
 
 A comprehensive Node.js backend API that provides weather data and predictions using NASA's POWER (Prediction Of Worldwide Energy Resources) API. This application serves historical weather data for past dates and generates predictions for future dates based on historical averages.
 
@@ -460,7 +460,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support and questions:
 
-- 📧 Email: support@weatherapi.com
+- 📧
 - 📖 Documentation: http://localhost:3000/api-docs
 - 🐛 Issues: GitHub Issues
 - 🌟 NASA POWER API: https://power.larc.nasa.gov/
@@ -468,7 +468,6 @@ For support and questions:
 ## 🙏 Acknowledgments
 
 - NASA POWER API for providing satellite-derived meteorological data
-- NASA Space Apps Challenge for inspiring this project
 - All contributors and users of this API
 
 ---
